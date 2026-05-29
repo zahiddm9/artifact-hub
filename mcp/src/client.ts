@@ -28,3 +28,7 @@ export function get(path: string): Promise<unknown> {
 export function post(path: string, body: unknown): Promise<unknown> {
   return request(path, { method: "POST", body: JSON.stringify(body) });
 }
+
+export function patch(path: string, body: unknown): Promise<unknown> {
+  return request(path, { method: "PATCH", body: JSON.stringify(body) });
+}

@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase";
-import type { Feedback, CreateFeedbackBody, ServiceResult } from "@/types";
+import type { Feedback, FeedbackStatus, CreateFeedbackBody, ServiceResult } from "@/types";
 
 export async function listFeedback(artifactId: string): Promise<ServiceResult<Feedback[]>> {
   const supabase = createAdminClient();
@@ -31,5 +31,24 @@ export async function addFeedback(
     .single();
 
   if (error) return { ok: false, status: 500, message: error.message };
+  return { ok: true, data: data as Feedback };
+}
+
+export async function updateFeedbackStatus(
+  feedbackId: string,
+  status: FeedbackStatus
+): Promise<ServiceResult<Feedback>> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("feedback")
+    .update({ status })
+    .eq("id", feedbackId)
+    .select("*")
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return { ok: false, status: 404, message: "Feedback not found" };
+    return { ok: false, status: 500, message: error.message };
+  }
   return { ok: true, data: data as Feedback };
 }

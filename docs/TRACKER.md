@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Phase 5 — MCP Extended
+Phase 6 — Seed + Deploy + Verification
 
 ## Done
 
@@ -74,9 +74,25 @@ MCP server (`mcp/` package — Node.js stdio, ESM):
 * Web `npm run build` clean — 15 routes (4 new MCP routes registered)
 * `cd mcp && npm run build` clean — 6 JS files compiled, TypeScript OK
 
+### Phase 5 — MCP Extended (complete)
+
+* `src/lib/services/feedback.ts` — added `updateFeedbackStatus` (PGRST116 → 404, else 500)
+* `POST /api/mcp/artifacts` — publish artifact; same validation + auto share-link logic as web route
+* `POST /api/mcp/feedback` — add feedback (no visibility gate; MCP key = access grant)
+* `PATCH /api/mcp/feedback` — update feedback status (MCP/API-only)
+* `mcp/src/client.ts` — added `patch()` helper
+* `mcp/src/tools/publish.ts` — `publish_artifact` (returns URL or share link based on visibility)
+* `mcp/src/tools/feedback.ts` — `add_feedback`, `update_feedback_status`
+* All 7 MCP tools registered in `mcp/src/index.ts`
+* Web build clean — 17 routes; MCP `tsc` clean
+
 ## In progress
 
-* Phase 5 — MCP Extended (not started yet)
+* Phase 6 — Seed + Deploy + Verification (not started yet)
+
+## Pending
+
+* `mcp/README.md` — Claude Desktop config snippet, tool list, example conversation (Phase 6)
 
 ## Blockers and decisions
 
