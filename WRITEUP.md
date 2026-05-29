@@ -16,7 +16,7 @@ Three decisions shaped how it feels.
 
 **Frictionless review.** The gallery is open — no login to browse or leave feedback. Anyone with a share link can review an unlisted artifact in under 30 seconds from a cold start. This is deliberate: structured feedback only has value if it's effortless to give. Adding an auth wall before that loop is proven would have traded the product's core value for a checkbox.
 
-**One complete lifecycle over feature breadth.** Every flow that ships works fully and correctly — publish, visibility enforcement, signed-URL access, feedback, AI summarization, expiring share links, and owner edit/delete. I chose depth over a wider surface with gaps, which is exactly the timebox tradeoff the brief asks for.
+**One complete lifecycle over feature breadth.** Every flow that ships works fully and correctly — publish, visibility enforcement, signed-URL access, feedback, AI summarization, expiring share links, and publisher edit/delete. I chose depth over a wider surface with gaps, which is exactly the timebox tradeoff the brief asks for.
 
 **One sharp LLM feature, not three shallow ones.** AI is focused on the single place it most directly attacks the stated pain — synthesizing scattered reviewer feedback into an actionable digest. It feels like part of the product, not a bolted-on demo, and the rest of the app degrades gracefully if the model is unavailable.
 
@@ -26,13 +26,13 @@ Three decisions shaped how it feels.
 
 These are intentional cuts under a 2-day timebox, each made to protect the core experience rather than dilute it.
 
-**No user accounts / RBAC.** Full auth is 4–6 hours of plumbing with little payoff at demo scale, and it would gate the frictionless-review loop that makes the product worth using. The access model is still fully demonstrated *without* it: a **Visitor/Owner toggle** (`?view=owner`) shows exactly what an anonymous user sees versus a publisher; the `public`/`unlisted` boundary is enforced at the API *and* database layers; private Storage serves files only through server-generated signed URLs; share tokens are the access grant for unlisted artifacts; and MCP routes require an API key. A reviewer can watch every access boundary work without signing in. Crucially, the model is *scoped for* real auth — adding Supabase Auth later is additive, not a rewrite.
+**No user accounts / RBAC.** Full auth is 4–6 hours of plumbing with little payoff at demo scale, and it would gate the frictionless-review loop that makes the product worth using. For the challenge, I used a **Publisher Demo view** to make the visibility model observable without adding full user accounts. Visitors see only public artifacts and have no publish/edit surface. Publisher Demo exposes the full review surface — unlisted artifacts with amber badges, inline edit/delete flows, and recovery paths — so the access model is observable end-to-end without signing in. The `public`/`unlisted` boundary is enforced at the API *and* database layers; private Storage serves files only through server-generated signed URLs; share tokens are the access grant for unlisted artifacts; and MCP routes require an API key. Crucially, the model is *scoped for* real auth — in production, this becomes real per-user ownership with SSO/RBAC. Adding Supabase Auth later is additive, not a rewrite.
 
 **No natural-language search.** Tag + type filtering is sufficient for a demo-sized catalog and degrades gracefully if AI is down — NL search would not. More importantly, keeping one LLM feature sharp beats two that feel thin.
 
 **`update_feedback_status` is MCP/API-only.** Closing or re-opening another reviewer's issue is a trusted review-management action. Anonymous web users shouldn't be able to dismiss feedback others left, so this lives only behind key-gated MCP routes — a clear trust boundary without needing full auth.
 
-**Append-first storage with owner-gated mutation.** Artifacts are immutable by default; edit and delete exist but are surfaced only in Owner mode, keeping the public surface safe while still demonstrating full CRUD.
+**Append-first storage with publisher-gated mutation.** Artifacts are immutable by default; edit and delete exist but are surfaced only in Publisher Demo mode, keeping the public surface safe while still demonstrating full CRUD.
 
 ---
 
@@ -139,7 +139,7 @@ The LLM stays invisible in the right way: it's a button that produces a useful a
 
 Evidence the system works, not just claims:
 
-- **CI on every push/PR to `main`** (`.github/workflows/ci.yml`): `lint` → `typecheck` → `test:run`.
+- **CI on every `feature/**` branch push** (`.github/workflows/ci.yml`): `lint` → `typecheck` → `test:run`. Feature branches carry the test gate; main stays clean by the time it lands.
 - **24 unit tests across 4 files**, focused on the highest-consequence pure logic: MCP auth (`isMcpAuthorized`), summary-shape validation (`isValidSummaryData`), share-link expiry boundary (`isShareLinkExpired`), and the rate-limit window/count algorithm (`checkRateLimit`). These are the functions where a silent bug would mean a security or correctness failure, so they're the ones worth pinning down with tests.
 - **Live smoke test** against the Vercel URL: gallery + filters, preview rendering for all three types (HTML iframe, SVG image, PDF with an "open in new tab" fallback for mobile Safari), feedback submit, summarize, share-link create/open, and publish (public lands in gallery; unlisted shows only the share link).
 - **Unlisted enforcement confirmed live:** `/artifacts/[id]` → 403, `/share/[token]` → full detail.
@@ -164,7 +164,12 @@ Evidence the system works, not just claims:
 
 **Seed.** `npm run seed` (with `.env.local` pointed at the hosted project) uploads the three sample artifacts and 15 feedback entries; `npm run seed -- --force` wipes and re-seeds.
 
-**MCP server.** `cd mcp && npm run build`, then add `mcp/dist/index.js` to Claude Desktop config (see `mcp/README.md`). It calls the deployed Vercel URL over HTTP.
+**MCP server.** `cd mcp && npm run build`, then add `mcp/dist/index.js` to Claude Desktop config (see `mcp/README.md`). It calls the deployed Vercel URL over HTTP. Two env vars are required in the Claude Desktop config (not Vercel):
+
+| Variable | Value |
+|---|---|
+| `ARTIFACT_HUB_ADMIN_KEY` | Must match the key set in Vercel |
+| `ARTIFACT_HUB_BASE_URL` | `https://artifact-hub-green.vercel.app` (no trailing slash) |
 
 **Live URL:** https://artifact-hub-green.vercel.app
 
@@ -177,7 +182,7 @@ Supabase + Vercel were chosen *on purpose* for this challenge: they buy a real h
 - **Cloud + IaC.** Move to a primary enterprise cloud (e.g. **Azure** — managed Postgres, Blob Storage, Container Apps/AKS) with the entire footprint defined in **Terraform**, so environments are reproducible and reviewable in PRs rather than clicked together in a dashboard.
 - **Environment isolation.** Separate dev / staging / prod projects, networks, and data stores — no shared keys across stages, private networking between app and database.
 - **Managed secrets.** Replace env-var secrets with a managed secret store (Azure Key Vault / HashiCorp Vault) with rotation and per-environment scoping.
-- **Real authentication + RBAC.** Replace the demo Visitor/Owner toggle and shared admin key with SSO/OIDC and role-based authorization (owner / reviewer / viewer). The current visibility model and the `update_feedback_status` trust boundary are already shaped for this.
+- **Real authentication + RBAC.** Replace the Publisher Demo toggle and shared admin key with SSO/OIDC and role-based authorization (publisher / reviewer / viewer). The current visibility model and the `update_feedback_status` trust boundary are already shaped for this.
 - **Audit logging.** Append-only audit trail for publish, edit, delete, status changes, and share-link creation — who did what, when.
 - **Observability.** Structured logging, metrics, distributed tracing, and error tracking (e.g. OpenTelemetry + a managed backend), plus alerting on the Gemini and Storage dependencies.
 - **Production MCP model.** Replace the local stdio + shared-key server with a hosted **remote MCP** endpoint (streamable HTTP) behind OAuth, so access is per-user and revocable instead of a single shared admin key.
@@ -191,11 +196,11 @@ The point is that none of this is rework — the service-layer boundary, the vis
 
 Product-feature priorities (distinct from the infrastructure evolution above):
 
-1. **User accounts with ownership** (Supabase Auth). The access model is already scoped for it; the Visitor/Owner toggle demonstrates the intended UX. Additive, not a rewrite.
-2. **Feedback status management in the web UI.** Owners can delete feedback today; the next step is marking items resolved / needs_review from the web, closing the loop with the MCP workflow.
+1. **User accounts with ownership** (Supabase Auth). The access model is already scoped for it; the Publisher Demo toggle demonstrates the intended UX. Additive, not a rewrite.
+2. **Feedback status management in the web UI.** Publishers can delete feedback today; the next step is marking items resolved / needs_review from the web, closing the loop with the MCP workflow.
 3. **Semantic search with pgvector.** Embed titles, descriptions, and tags on publish; query by cosine similarity. Tag filtering is fine at demo scale; a real catalog needs full-text + semantic search.
 4. **Artifact versioning.** Track revisions of the same artifact and attach feedback to a specific version — which makes summarization even more valuable across iterative review cycles.
-5. **Webhook / email notifications.** Notify the owner on new feedback or a regenerated summary — a Supabase Edge Function on row insert.
+5. **Webhook / email notifications.** Notify the publisher on new feedback or a regenerated summary — a Supabase Edge Function on row insert.
 
 ---
 
@@ -205,9 +210,9 @@ A written step-by-step covering the core experience. All flows are live at https
 
 **Web — review lifecycle**
 1. **Browse as Visitor.** Open `/` — public artifacts only, no Publish button. Filter by type; type a tag prefix to narrow client-side.
-2. **Switch to Owner.** Click the **Owner** toggle (`?view=owner`). The unlisted artifact now appears with an amber badge, and the Publish button unlocks.
+2. **Switch to Publisher Demo.** Click the **Publisher Demo** toggle (`?view=owner`). The unlisted artifact now appears with an amber badge, and the Publish button unlocks.
 3. **Open an artifact.** Click a card → detail page with the rendered preview (HTML iframe / image / PDF), the feedback thread, and the summary panel.
-4. **Edit inline (Owner).** Use the edit form to change title / description / tags / visibility and save.
+4. **Edit inline (Publisher Demo).** Use the edit form to change title / description / tags / visibility and save.
 5. **Leave feedback.** Submit name, role, type, and comment — it appears in the thread immediately, and the summary panel shows a stale badge.
 6. **Summarize.** Click **Summarize feedback** → structured digest (assessment, issues, suggestions, questions, approvals) with model + timestamp provenance. Click again to see it served instantly from cache.
 7. **Share.** Click Share → a copyable expiring link; open `/share/[token]` to see the full detail view (and confirm `/artifacts/[id]` returns 403 for an unlisted artifact).
@@ -225,7 +230,9 @@ A 5-minute screen recording of these flows accompanies the submission.
 
 ## How this was built (AI tooling)
 
-This project was built primarily with **Claude Code**. The workflow is visible in the repo: design and execution plans live in `docs/plans/`, phase-by-phase execution state in `docs/TRACKER.md`, and the full Claude Code session logs are included with the submission under `claude-sessions/` per the brief. No other AI coding tools were used.
+**Claude Code** was the primary implementation tool. The workflow is visible in the repo: design and execution plans live in `docs/plans/`, phase-by-phase execution state in `docs/TRACKER.md`, and the full Claude Code session logs are included with the submission under `claude-sessions/` per the brief.
+
+**ChatGPT** was used as an external product and architecture reviewer throughout the project — not for code generation, but for critique, prompt refinement, and submission strategy. Specifically: reviewing product decisions for blind spots, stress-testing the access model framing, and pressure-testing the writeup structure. The reason for this is deliberate: a second model with different training and tendencies can surface issues that the primary tool — and the developer — are too close to see. Claude Code shaped the implementation; ChatGPT served as the external critic that kept the product decisions honest.
 
 ---
 
