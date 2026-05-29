@@ -92,7 +92,7 @@ export default async function ArtifactDetailPage({ params, searchParams }: Props
           <ShareButton artifactId={artifact.id} />
         </div>
 
-        {/* Owner actions */}
+        {/* Publisher Demo actions */}
         {isOwnerView && <ArtifactActions artifact={publicArtifact} />}
 
         {/* Preview */}

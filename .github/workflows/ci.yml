@@ -2,7 +2,8 @@ name: Quality Checks
 
 on:
   push:
-    branches: [feature/**]
+    branches: [main, feature/**]
+  pull_request:
 
 jobs:
   quality:

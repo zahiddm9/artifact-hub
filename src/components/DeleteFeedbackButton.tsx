@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
+import { deleteFeedbackAction } from "@/lib/actions/feedback";
 
 export function DeleteFeedbackButton({ feedbackId }: { feedbackId: string }) {
   const router = useRouter();
@@ -16,7 +17,7 @@ export function DeleteFeedbackButton({ feedbackId }: { feedbackId: string }) {
     }
     if (state === "confirm") {
       setState("deleting");
-      await fetch(`/api/feedback/${feedbackId}`, { method: "DELETE" });
+      await deleteFeedbackAction(feedbackId);
       router.refresh();
     }
   }

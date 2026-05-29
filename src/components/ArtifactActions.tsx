@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ArtifactPublic, ArtifactVisibility } from "@/types";
+import { deleteArtifactAction, updateArtifactAction } from "@/lib/actions/artifacts";
 
 interface Props {
   artifact: ArtifactPublic;
@@ -34,20 +35,13 @@ export function ArtifactActions({ artifact }: Props) {
     setError("");
     try {
       const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
-      const res = await fetch(`/api/artifacts/${artifact.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim() || null,
-          tags,
-          visibility,
-        }),
+      const result = await updateArtifactAction(artifact.id, {
+        title: title.trim(),
+        description: description.trim() || null,
+        tags,
+        visibility,
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Save failed");
-      }
+      if (!result.ok) throw new Error(result.message ?? "Save failed");
       setMode("idle");
       router.refresh();
     } catch (err) {
@@ -59,7 +53,7 @@ export function ArtifactActions({ artifact }: Props) {
 
   async function handleDelete() {
     setMode("deleting");
-    await fetch(`/api/artifacts/${artifact.id}`, { method: "DELETE" });
+    await deleteArtifactAction(artifact.id);
     router.push("/?view=owner");
   }
 

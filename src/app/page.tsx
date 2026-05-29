@@ -67,7 +67,7 @@ export default async function GalleryPage({ searchParams }: Props) {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Owner
+                Publisher Demo
               </Link>
             </div>
           </div>
@@ -76,7 +76,7 @@ export default async function GalleryPage({ searchParams }: Props) {
 
         {isOwnerView && (
           <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Owner view — you can see and publish all artifacts including unlisted. In visitor view, the gallery is read-only and shows only public artifacts.
+            Publisher Demo view — you can see and publish all artifacts including unlisted. In visitor view, the gallery is read-only and shows only public artifacts.
           </div>
         )}
 

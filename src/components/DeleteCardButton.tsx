@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
+import { deleteArtifactAction } from "@/lib/actions/artifacts";
 
 export function DeleteCardButton({ artifactId }: { artifactId: string }) {
   const router = useRouter();
@@ -20,7 +21,7 @@ export function DeleteCardButton({ artifactId }: { artifactId: string }) {
 
     if (state === "confirm") {
       setState("deleting");
-      await fetch(`/api/artifacts/${artifactId}`, { method: "DELETE" });
+      await deleteArtifactAction(artifactId);
       router.refresh();
     }
   }

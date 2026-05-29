@@ -19,7 +19,7 @@ export function registerManageTools(server: McpServer): void {
       artifact_id: z.string().describe("The artifact UUID to delete"),
     },
     async ({ artifact_id }) => {
-      await client.del(`/api/artifacts/${artifact_id}`);
+      await client.del(`/api/mcp/artifacts/${artifact_id}`);
       return {
         content: [{
           type: "text" as const,
@@ -46,7 +46,7 @@ export function registerManageTools(server: McpServer): void {
       if (tags !== undefined) body.tags = tags;
       if (visibility !== undefined) body.visibility = visibility;
 
-      const data = (await client.patch(`/api/artifacts/${artifact_id}`, body)) as ArtifactPublic;
+      const data = (await client.patch(`/api/mcp/artifacts/${artifact_id}`, body)) as ArtifactPublic;
       const changes = Object.keys(body).join(", ");
 
       return {

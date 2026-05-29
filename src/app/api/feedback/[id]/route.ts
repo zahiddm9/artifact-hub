@@ -1,12 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { deleteFeedback } from "@/lib/services/feedback";
+import { NextResponse } from "next/server";
 
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const result = await deleteFeedback(id);
-  if (!result.ok) return NextResponse.json({ error: result.message }, { status: result.status });
-  return NextResponse.json({ deleted: true });
+// Feedback deletion is handled via Next.js Server Actions (src/lib/actions/feedback.ts).
+// This public HTTP endpoint is intentionally closed.
+export function DELETE() {
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
 }
