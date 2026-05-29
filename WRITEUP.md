@@ -58,7 +58,7 @@ The MCP server (`mcp/`) is a Node.js stdio process. Reviewers add it to Claude D
       "args": ["/path/to/repo/mcp/dist/index.js"],
       "env": {
         "ARTIFACT_HUB_ADMIN_KEY": "your-admin-key",
-        "ARTIFACT_HUB_BASE_URL": "https://your-app.vercel.app"
+        "ARTIFACT_HUB_BASE_URL": "https://artifact-hub-green.vercel.app"
       }
     }
   }
@@ -119,7 +119,7 @@ The feature is immediately testable from the seeded artifacts, which have 5 feed
 
 **MCP server:** Run locally by the reviewer. Build with `cd mcp && npm run build`, then add to Claude Desktop config as shown in `mcp/README.md`. The server calls the deployed Vercel URL via HTTP.
 
-**Live URL:** `[fill in after deployment]`
+**Live URL:** `https://artifact-hub-green.vercel.app`
 
 ---
 
