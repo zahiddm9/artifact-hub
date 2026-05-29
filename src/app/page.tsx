@@ -12,18 +12,17 @@ import type { ArtifactType } from "@/types";
 const GALLERY_CLIENT_FILTER_LIMIT = 500;
 
 interface Props {
-  searchParams: Promise<{ type?: string; view?: string }>;
+  searchParams: Promise<{ type?: string; view?: string; search?: string }>;
 }
 
 export default async function GalleryPage({ searchParams }: Props) {
-  const { type, view } = await searchParams;
+  const { type, view, search } = await searchParams;
   const isOwnerView = view === "owner";
 
-  // Type filter is server-authoritative: visibility, access control, and
-  // pagination stay here. Tag search is handled client-side — see GalleryFilter.
   const result = await listArtifacts({
     visibility: isOwnerView ? undefined : "public",
     type: (type as ArtifactType) || undefined,
+    search: search || undefined,
     limit: GALLERY_CLIENT_FILTER_LIMIT,
   });
 

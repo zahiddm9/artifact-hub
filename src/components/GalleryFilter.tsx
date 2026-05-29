@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Layers, FileText, Image, Code } from "lucide-react";
+import { Layers, FileText, Image, Code, Search } from "lucide-react";
 import { ArtifactCard } from "./ArtifactCard";
 import { DeleteCardButton } from "./DeleteCardButton";
 import type { Artifact, ArtifactType } from "@/types";
@@ -53,6 +53,25 @@ export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
   const [isPending, startTransition] = useTransition();
 
   const currentType = searchParams.get("type") ?? "";
+  const currentSearch = searchParams.get("search") ?? "";
+
+  // Search input: local state debounced to URL param → server re-fetch.
+  const [searchInput, setSearchInput] = useState(() => currentSearch);
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    const timer = setTimeout(() => {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (searchInput.trim()) params.set("search", searchInput.trim());
+        else params.delete("search");
+        router.push(`${pathname}?${params.toString()}`);
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
   // Local state: decoupled from URL so typing never triggers router.push.
   // Initialised once from the URL so a bookmarked ?tag= still pre-fills the input.
@@ -68,7 +87,7 @@ export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
     );
   }, [artifacts, tagInput]);
 
-  const hasFilter = currentType || tagInput;
+  const hasFilter = currentType || tagInput || searchInput;
 
   // Type filter: discrete click → URL param → server re-fetch. Correct path for
   // access-controlled, visibility-filtered, server-authoritative data.
@@ -85,6 +104,7 @@ export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
 
   function clearAll() {
     setTagInput("");
+    setSearchInput("");
     const currentView = searchParams.get("view");
     router.push(currentView ? `${pathname}?view=${currentView}` : pathname);
   }
@@ -93,6 +113,18 @@ export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
     <>
       {/* Filter row */}
       <div className="mb-8 flex flex-wrap items-center gap-3" aria-busy={isPending}>
+        {/* Name search — server-side, debounced URL param */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search by name…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="rounded-lg border border-border bg-input pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-48"
+          />
+        </div>
+
         {/* Type filter — server-side via URL */}
         <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/50 p-1">
           {TYPES.map(({ value, label, icon: Icon }) => {
@@ -152,7 +184,7 @@ export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
       {filteredArtifacts.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-12 text-center">
           <p className="text-muted-foreground">
-            {tagInput ? `No artifacts match "${tagInput}".` : "No artifacts found."}
+            {searchInput ? `No artifacts match "${searchInput}".` : tagInput ? `No artifacts tagged "${tagInput}".` : "No artifacts found."}
           </p>
           {!tagInput && (
             <Link
