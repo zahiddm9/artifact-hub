@@ -74,7 +74,7 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
     <form onSubmit={handleSubmit} className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
       <h3 className="font-semibold text-zinc-900">Leave feedback</h3>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="block text-xs font-medium text-zinc-700 mb-1">
             Name <span className="text-red-500">*</span>
