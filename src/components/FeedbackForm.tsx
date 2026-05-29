@@ -84,7 +84,7 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Your name"
-            className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
           />
         </div>
         <div>
@@ -94,7 +94,7 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
             value={role}
             onChange={(e) => setRole(e.target.value)}
             placeholder="Designer, Engineer…"
-            className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
           />
         </div>
       </div>
@@ -110,7 +110,7 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
                 value={value}
                 checked={type === value}
                 onChange={() => setType(value)}
-                className="accent-zinc-900"
+                className="accent-violet-600"
               />
               <span className="text-sm text-zinc-700">{label}</span>
             </label>
@@ -127,7 +127,7 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
           onChange={(e) => setComment(e.target.value)}
           rows={3}
           placeholder="Your feedback…"
-          className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none"
+          className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-600 resize-none"
         />
       </div>
 
@@ -136,7 +136,7 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
       <button
         type="submit"
         disabled={submitting}
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50"
+        className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-violet-700 disabled:opacity-50"
       >
         {submitting ? "Submitting…" : "Submit feedback"}
       </button>
