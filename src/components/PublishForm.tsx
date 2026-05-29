@@ -144,7 +144,7 @@ export function PublishForm() {
             <div className="flex gap-3">
               <Link
                 href={`/artifacts/${success.artifactId}`}
-                className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-zinc-700"
+                className="inline-flex items-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-violet-700"
               >
                 View artifact
               </Link>
@@ -176,7 +176,7 @@ export function PublishForm() {
           type="file"
           accept=".pdf,.html,.htm,image/*"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="block w-full text-sm text-zinc-500 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white file:transition-colors file:duration-150 hover:file:bg-zinc-700 cursor-pointer"
+          className="block w-full text-sm text-zinc-500 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white file:transition-colors file:duration-150 hover:file:bg-violet-700 cursor-pointer"
         />
         <p className="mt-1 text-xs text-zinc-400">PDF, image (PNG / JPG / GIF / WebP), or HTML file</p>
       </div>
@@ -190,7 +190,7 @@ export function PublishForm() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Q1 2026 Report"
-          className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
         />
       </div>
 
@@ -201,7 +201,7 @@ export function PublishForm() {
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
           placeholder="Brief description…"
-          className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none"
+          className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-600 resize-none"
         />
       </div>
 
@@ -212,7 +212,7 @@ export function PublishForm() {
           value={tags}
           onChange={(e) => setTags(e.target.value)}
           placeholder="design, q1-2026, marketing"
-          className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
         />
         <p className="mt-1 text-xs text-zinc-400">Comma-separated</p>
       </div>
@@ -228,7 +228,7 @@ export function PublishForm() {
                 value={v}
                 checked={visibility === v}
                 onChange={() => setVisibility(v)}
-                className="accent-zinc-900"
+                className="accent-violet-600"
               />
               <span className="text-sm text-zinc-700 capitalize">{v}</span>
               {v === "unlisted" && (
@@ -244,7 +244,7 @@ export function PublishForm() {
       <button
         type="submit"
         disabled={uploading}
-        className="w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50"
+        className="w-full rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-violet-700 disabled:opacity-50"
       >
         {uploading ? "Publishing…" : "Publish artifact"}
       </button>
