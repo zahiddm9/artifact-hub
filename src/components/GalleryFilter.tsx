@@ -33,7 +33,7 @@ export function GalleryFilter() {
           <button
             key={value}
             onClick={() => update("type", value)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
               currentType === value
                 ? "bg-zinc-900 text-white"
                 : "text-zinc-600 hover:bg-zinc-100"
@@ -55,7 +55,7 @@ export function GalleryFilter() {
       {hasFilter && (
         <button
           onClick={() => router.push(pathname)}
-          className="text-sm text-zinc-500 hover:text-zinc-900 underline"
+          className="text-sm text-zinc-500 transition-colors duration-150 hover:text-zinc-900 underline"
         >
           Clear
         </button>

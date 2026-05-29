@@ -41,7 +41,7 @@ export function ShareButton({ artifactId }: { artifactId: string }) {
         />
         <button
           onClick={() => navigator.clipboard.writeText(shareUrl)}
-          className="shrink-0 text-xs text-zinc-500 hover:text-zinc-900"
+          className="shrink-0 text-xs text-zinc-500 transition-colors duration-150 hover:text-zinc-900"
         >
           Copy
         </button>

@@ -56,7 +56,7 @@ export function FeedbackSummary({ artifactId, initialSummary, feedbackCount }: P
           <button
             onClick={() => generate(false)}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-zinc-700 disabled:opacity-50"
           >
             {loading ? "Generating…" : "Summarize feedback"}
           </button>
@@ -64,7 +64,7 @@ export function FeedbackSummary({ artifactId, initialSummary, feedbackCount }: P
           <button
             onClick={() => generate(true)}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors duration-150 hover:bg-zinc-50 disabled:opacity-50"
           >
             {loading ? "Regenerating…" : "Regenerate"}
           </button>

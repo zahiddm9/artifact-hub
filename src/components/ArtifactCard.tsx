@@ -13,7 +13,7 @@ export function ArtifactCard({ artifact }: { artifact: Artifact }) {
   return (
     <Link
       href={`/artifacts/${artifact.id}`}
-      className="group flex flex-col rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:shadow-md hover:border-zinc-300"
+      className="group flex flex-col rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition duration-150 hover:shadow-md hover:border-zinc-300 hover:-translate-y-0.5"
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold text-zinc-900 leading-snug line-clamp-2">
