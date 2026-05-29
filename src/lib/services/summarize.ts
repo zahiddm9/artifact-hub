@@ -2,12 +2,12 @@ import { GoogleGenAI } from "@google/genai";
 import { createAdminClient } from "@/lib/supabase";
 import type { Artifact, Feedback, FeedbackSummary, FeedbackSummaryData, ServiceResult } from "@/types";
 
-const PROMPT_VERSION = "v1";
+const PROMPT_VERSION = "v2";
 
 function buildPrompt(artifact: Artifact, items: Feedback[]): string {
   const lines = items.map((f, i) => {
     const role = f.reviewer_role ? ` (${f.reviewer_role})` : "";
-    return `${i + 1}. [${f.feedback_type}] ${f.reviewer_name}${role}: "${f.comment}"`;
+    return `${i + 1}. [${f.feedback_type}|${f.status}] ${f.reviewer_name}${role}: "${f.comment}"`;
   });
 
   return `You are summarizing reviewer feedback for an AI-generated artifact.
@@ -17,9 +17,11 @@ Artifact: "${artifact.title}"${artifact.description ? `\nDescription: "${artifac
 Feedback (${items.length} item${items.length === 1 ? "" : "s"}):
 ${lines.join("\n")}
 
+Each item is formatted as [type|status]. Status values: open, needs_review, resolved.
+
 Return a JSON object with exactly these fields:
 - overall_assessment: 1-2 sentence summary of the overall reception
-- open_issues: array of strings — one per unresolved issue (feedback_type=issue, status=open or needs_review)
+- open_issues: array of strings — one per issue where status is open or needs_review only; exclude resolved issues entirely
 - suggestions: array of strings — one per suggestion (feedback_type=suggestion)
 - questions: array of strings — one per unanswered question (feedback_type=question)
 - approval_count: integer count of approvals (feedback_type=approval)`;
