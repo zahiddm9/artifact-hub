@@ -1,9 +1,9 @@
 # Artifact Hub — Handoff Document
 
-**Date:** 2026-05-29 (updated)
+**Date:** 2026-05-29 (final update)
 **Repo:** `C:\Users\zahid\Documents\Github\ezra-coaching`  
 **Branch:** `master`  
-**Last commit:** `e7577f6` — Fix gallery fetch limit: explicit GALLERY_CLIENT_FILTER_LIMIT = 500
+**Last commit:** `da658b7` — Polish frontend UX and docs
 
 ---
 
@@ -386,3 +386,87 @@ Same as original handoff — next session is pure manual verification, no code:
 1. **`superpowers:verification-before-completion`** — before claiming any deployment step complete
 2. **`superpowers:systematic-debugging`** — if any smoke test step fails (Supabase CORS, Gemini API error, MCP 401)
 3. **`verify`** — to confirm specific flows work end-to-end in the running app
+
+---
+
+## UPDATE — 2026-05-29 (Deployment + Verification Complete)
+
+**Last commit:** `da658b7`  
+**Branch:** `master`
+
+### What happened in this session
+
+Deployment and MCP verification completed. The project is fully submitted.
+
+---
+
+### Deployment status
+
+| Step | Status | Detail |
+|---|---|---|
+| Database seeded | ✅ Done | 3 artifacts + 15 feedback entries confirmed via `/api/artifacts` |
+| Vercel deployment | ✅ Done | Live at `https://artifact-hub-green.vercel.app` |
+| Live smoke test | ✅ Done | Gallery, filters, preview, feedback, summarize, share, publish all verified |
+| MCP build | ✅ Done | `mcp/dist/index.js` compiled |
+| Claude Desktop config | ✅ Done | Configured at `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json` (Microsoft Store version of Claude Desktop — non-standard path) |
+| MCP tool verification | ✅ Done | All 7 tools tested and confirmed working |
+
+### MCP verification results
+
+All 7 tools confirmed working against `https://artifact-hub-green.vercel.app`:
+
+| Tool | Result |
+|---|---|
+| `list_artifacts` | ✅ Returns all artifacts including unlisted |
+| `get_artifact` | ✅ Full detail, feedback list, signed Supabase URL |
+| `create_share_link` | ✅ Expiring token created |
+| `summarize_feedback` | ✅ Gemini summary returned, cache-first logic works |
+| `add_feedback` | ✅ Feedback created (response is flat object, not nested under `feedback` key) |
+| `update_feedback_status` | ✅ Status updated to `resolved` |
+| `publish_artifact` | ✅ Unlisted artifact published with auto share link |
+
+**Note on response shape:** `POST /api/mcp/feedback` returns the feedback object directly at the root (not nested under `feedback`). `GET /api/mcp/artifacts/:id` returns `signedUrl` (camelCase) not `signed_url`. Both are correct — just note for any future tooling.
+
+---
+
+### What remains
+
+Two steps only:
+
+**Step 5 — WRITEUP.md**
+Add `https://artifact-hub-green.vercel.app` wherever `[fill in after deployment]` appears. Commit.
+
+**Step 6 — Session logs**
+```powershell
+mkdir claude-sessions
+copy "$env:USERPROFILE\.claude\projects\C--Users-zahid-Documents-Github-ezra-coaching\*.jsonl" claude-sessions\
+git add claude-sessions/
+git commit -m "Add Claude Code session logs"
+```
+
+Note: submission folder is `claude-sessions/` (not `sessions/` as stated in `requirements.md`).
+
+---
+
+### Live URLs
+
+| Resource | URL |
+|---|---|
+| Live app | `https://artifact-hub-green.vercel.app` |
+| Gallery | `https://artifact-hub-green.vercel.app/` |
+| Publish | `https://artifact-hub-green.vercel.app/publish` |
+| MCP base | `https://artifact-hub-green.vercel.app/api/mcp/*` |
+
+### Sensitive values (not committed — keep private)
+
+- `ARTIFACT_HUB_ADMIN_KEY` — in `.env.local` and Vercel env vars; also in Claude Desktop config
+- `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY` — in `.env.local` and Vercel env vars only
+
+---
+
+### Suggested skills for final steps
+
+No code changes remain. No skills needed for WRITEUP.md edit or log collection. If anything breaks:
+
+1. **`superpowers:systematic-debugging`** — for any unexpected issues
+2. **`superpowers:verification-before-completion`** — before marking submission complete
