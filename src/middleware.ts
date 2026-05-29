@@ -5,11 +5,34 @@ import { NextRequest, NextResponse } from "next/server";
 const store = new Map<string, { count: number; resetAt: number }>();
 
 const LIMITS: { method: string; pattern: RegExp; max: number; windowMs: number }[] = [
-  { method: "POST", pattern: /^\/api\/artifacts$/,                       max: 10, windowMs: 60_000 },
-  { method: "POST", pattern: /^\/api\/artifacts\/[^/]+\/feedback$/,      max: 30, windowMs: 60_000 },
-  { method: "POST", pattern: /^\/api\/share$/,                           max: 20, windowMs: 60_000 },
-  { method: "POST", pattern: /^\/api\/artifacts\/[^/]+\/summarize$/,     max:  5, windowMs: 60_000 },
+  { method: "POST", pattern: /^\/api\/artifacts$/,                   max: 10, windowMs: 60_000 },
+  { method: "POST", pattern: /^\/api\/artifacts\/[^/]+\/feedback$/,  max: 30, windowMs: 60_000 },
+  { method: "POST", pattern: /^\/api\/share$/,                       max: 20, windowMs: 60_000 },
+  { method: "POST", pattern: /^\/api\/artifacts\/[^/]+\/summarize$/, max:  5, windowMs: 60_000 },
 ];
+
+// Pure rate-limit check — exported for testing. Mutates store in place.
+export function checkRateLimit(
+  rateStore: Map<string, { count: number; resetAt: number }>,
+  key: string,
+  max: number,
+  windowMs: number,
+  now: number
+): { allowed: boolean; retryAfter: number } {
+  const entry = rateStore.get(key);
+
+  if (!entry || entry.resetAt <= now) {
+    rateStore.set(key, { count: 1, resetAt: now + windowMs });
+    return { allowed: true, retryAfter: 0 };
+  }
+
+  if (entry.count >= max) {
+    return { allowed: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
+  }
+
+  entry.count += 1;
+  return { allowed: true, retryAfter: 0 };
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -24,27 +47,24 @@ export function middleware(request: NextRequest) {
     request.headers.get("x-real-ip") ??
     "127.0.0.1";
 
-  const key = `${ip}:${request.method}:${pathname}`;
-  const now = Date.now();
-  const entry = store.get(key);
+  const result = checkRateLimit(
+    store,
+    `${ip}:${request.method}:${pathname}`,
+    rule.max,
+    rule.windowMs,
+    Date.now()
+  );
 
-  if (!entry || entry.resetAt <= now) {
-    store.set(key, { count: 1, resetAt: now + rule.windowMs });
-    return NextResponse.next();
-  }
-
-  if (entry.count >= rule.max) {
-    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+  if (!result.allowed) {
     return new NextResponse(JSON.stringify({ error: "Too many requests" }), {
       status: 429,
       headers: {
         "Content-Type": "application/json",
-        "Retry-After": String(retryAfter),
+        "Retry-After": String(result.retryAfter),
       },
     });
   }
 
-  entry.count += 1;
   return NextResponse.next();
 }
 
