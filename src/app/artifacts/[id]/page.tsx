@@ -35,7 +35,7 @@ export default async function ArtifactDetailPage({ params, searchParams }: Props
   const artifact = result.data;
   const { storage_path: _, ...publicArtifact } = artifact;
 
-  if (artifact.visibility === "unlisted") {
+  if (artifact.visibility === "unlisted" && !isOwnerView) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center max-w-sm">
