@@ -62,7 +62,7 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
         Feedback submitted. Thank you!{" "}
         <button
           onClick={() => { setSubmitted(false); setName(""); setRole(""); setComment(""); }}
-          className="underline hover:text-green-900"
+          className="underline transition-colors duration-150 hover:text-green-900"
         >
           Add another
         </button>

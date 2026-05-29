@@ -132,7 +132,7 @@ export function PublishForm() {
               />
               <button
                 onClick={() => navigator.clipboard.writeText(shareUrl)}
-                className="shrink-0 text-xs text-zinc-500 hover:text-zinc-900"
+                className="shrink-0 text-xs text-zinc-500 transition-colors duration-150 hover:text-zinc-900"
               >
                 Copy
               </button>
@@ -144,13 +144,13 @@ export function PublishForm() {
             <div className="flex gap-3">
               <Link
                 href={`/artifacts/${success.artifactId}`}
-                className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+                className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-zinc-700"
               >
                 View artifact
               </Link>
               <Link
                 href="/"
-                className="inline-flex items-center rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                className="inline-flex items-center rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors duration-150 hover:bg-zinc-50"
               >
                 Back to gallery
               </Link>
@@ -158,7 +158,7 @@ export function PublishForm() {
           </div>
         )}
 
-        <button onClick={reset} className="text-sm text-zinc-500 hover:text-zinc-900 underline">
+        <button onClick={reset} className="text-sm text-zinc-500 transition-colors duration-150 hover:text-zinc-900 underline">
           Publish another
         </button>
       </div>
@@ -176,7 +176,7 @@ export function PublishForm() {
           type="file"
           accept=".pdf,.html,.htm,image/*"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="block w-full text-sm text-zinc-500 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-700 cursor-pointer"
+          className="block w-full text-sm text-zinc-500 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white file:transition-colors file:duration-150 hover:file:bg-zinc-700 cursor-pointer"
         />
         <p className="mt-1 text-xs text-zinc-400">PDF, image (PNG / JPG / GIF / WebP), or HTML file</p>
       </div>

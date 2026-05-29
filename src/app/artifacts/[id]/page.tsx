@@ -37,7 +37,7 @@ export default async function ArtifactDetailPage({ params }: Props) {
           <p className="mt-2 text-zinc-500">
             This artifact requires a share link to access.
           </p>
-          <Link href="/" className="mt-4 inline-block text-sm text-zinc-600 underline hover:text-zinc-900">
+          <Link href="/" className="mt-4 inline-block text-sm text-zinc-600 underline transition-colors duration-150 hover:text-zinc-900">
             Back to gallery
           </Link>
         </div>
@@ -84,7 +84,7 @@ export default async function ArtifactDetailPage({ params }: Props) {
                   <Link
                     key={tag}
                     href={`/?tag=${encodeURIComponent(tag)}`}
-                    className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs text-zinc-600 hover:bg-zinc-200"
+                    className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs text-zinc-600 transition-colors duration-150 hover:bg-zinc-200"
                   >
                     {tag}
                   </Link>
