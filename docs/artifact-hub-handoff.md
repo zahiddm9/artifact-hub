@@ -470,3 +470,107 @@ No code changes remain. No skills needed for WRITEUP.md edit or log collection. 
 
 1. **`superpowers:systematic-debugging`** — for any unexpected issues
 2. **`superpowers:verification-before-completion`** — before marking submission complete
+
+---
+
+## UPDATE — 2026-05-29 (Engineering Quality + Product Polish + Submission Prep)
+
+**Last commit:** `9031000` — docs: update WRITEUP and MCP README for final submission  
+**Branch:** `main`
+
+### What happened in this session
+
+A full product-quality audit was run via the `product-requirements-reviewer` agent. All identified gaps were addressed across multiple passes. The repo is now in a clean, submission-ready state. See `docs/TRACKER.md` for the full commit-level history.
+
+---
+
+### Summary of all changes made
+
+**Engineering quality pass** (commits `9535b4f` → `e0ef154`)
+- Fixed 2 ESLint errors (ThemeProvider setState-in-effect, share page impure Date.now)
+- Removed dead code from `supabase.ts` (`createBrowserClient`, `createSupabaseServerClient`, `@supabase/ssr` import)
+- Installed Vitest; added `test`, `test:run`, `typecheck` scripts
+- 16 tests: `isMcpAuthorized` (5) + `isValidSummaryData` (11)
+- GitHub Actions CI: lint + typecheck + test on push/PR to main
+
+**Finishing improvements pass** (commits `fa43ae6` → `9db7793`)
+- PDF fallback "Open in new tab ↗" link (fixes blank on mobile/iOS Safari)
+- Gallery subtitle: "Browse and manage" → "Browse, review, and share content"
+- Summary footer: adds `generated_at` timestamp
+- Share link expiry: always visible below artifact title; improved expired/404 error copy
+- ShareButton: "Copied!" flash + `cursor-pointer`
+- Owner/Visitor gallery toggle (`?view=owner`): visitor = read-only public gallery; owner = all artifacts, Publish button, unlisted amber badges
+- MCP all 9 tools: contextual workflow next-step hints on every response
+
+**Owner delete + edit** (commits `e2caed4` → `7161ed0`)
+- `deleteArtifact` + `updateArtifact` service functions
+- `DELETE /api/artifacts/[id]` + `PATCH /api/artifacts/[id]` routes
+- `DELETE /api/feedback/[id]` route + `deleteFeedback` service
+- `DeleteCardButton`: two-click confirm trash icon on gallery cards (owner mode)
+- `ArtifactActions`: inline edit form (title/description/tags/visibility) + delete confirm on detail page
+- `DeleteFeedbackButton`: per-item delete on feedback list (owner mode, detail page only)
+- Bug fix: unlisted artifacts now accessible to owner on detail page (`?view=owner` bypasses 403)
+- MCP: `delete_artifact` + `update_artifact` tools (now 9 total)
+
+**Hydration + script fix** (commit `4de90b8`)
+- Reverted ThemeProvider lazy useState (was causing server/client theme mismatch → hydration crash)
+- Replaced bare `<script dangerouslySetInnerHTML>` with `<Script strategy="beforeInteractive">` from `next/script`
+
+**Rate limiting** (commit `43a2050`)
+- `src/middleware.ts`: per-IP fixed-window rate limiting
+- Limits: publish 10/min, feedback 30/min, share 20/min, summarize 5/min
+- Returns 429 + `Retry-After` header; in-memory (comment notes Upstash upgrade path)
+
+**Test expansion** (commit `0148c88`)
+- Extracted `isShareLinkExpired` from `validateShareLink` → 4 tests (access-control boundary)
+- Extracted `checkRateLimit` from middleware → 4 tests (window/count algorithm)
+- Total: **24 tests across 4 files**
+
+**Repo cleanup + submission docs** (commits `44d9474`, `9031000`)
+- Removed unused Next.js default public/ assets (file.svg, globe.svg, next.svg, vercel.svg, window.svg)
+- Moved `artifact-hub-handoff.md` → `docs/artifact-hub-handoff.md`
+- Removed empty `supabase/seed.sql`
+- Added `supabase/migrations/002_rls.sql` for reproducibility (already applied to hosted DB)
+- **WRITEUP.md fully rewritten** — accurate tool count (9), rate limiting documented, delete/edit documented, Owner/Visitor model explained, architecture + engineering quality strengthened, "what I'd do next" updated
+- **mcp/README.md** updated with `delete_artifact` and `update_artifact` in tool table
+
+---
+
+### Current technical state
+
+| Check | Status |
+|---|---|
+| `npm run lint` | 0 errors, 8 warnings (all intentional `_` unused vars) |
+| `npm run typecheck` | Clean |
+| `npm run test:run` | 24/24 pass |
+| `cd mcp && npm run build` | Clean, 9 tools |
+| Live URL | `https://artifact-hub-green.vercel.app` |
+
+---
+
+### What still remains (2 required deliverables)
+
+**1. Session logs** — Copy `.jsonl` files to `claude-sessions/` and commit:
+```powershell
+mkdir claude-sessions
+copy "$env:USERPROFILE\.claude\projects\C--Users-zahid-Documents-Github-ezra-coaching\*.jsonl" claude-sessions\
+git add claude-sessions/
+git commit -m "chore: add Claude Code session logs"
+```
+
+**2. Walkthrough** — Add a "Walkthrough" section to `WRITEUP.md` covering these flows:
+1. Browse gallery as Visitor (public-only, no Publish button)
+2. Switch to Owner mode — see unlisted artifact with amber badge
+3. Click unlisted artifact → view detail with Edit/Delete/Share controls
+4. Edit artifact metadata inline, save
+5. Leave feedback, submit
+6. Summarize feedback → see structured digest
+7. Share → copy URL → open in new tab
+8. (Optional) MCP: `list_artifacts`, `get_artifact`, `summarize_feedback` in Claude Desktop
+
+---
+
+### Suggested skills for next session
+
+- **`superpowers:verification-before-completion`** — run before declaring submission complete
+- No implementation skills needed — remaining work is file copy + WRITEUP prose only
