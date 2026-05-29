@@ -59,7 +59,8 @@ _[Final writeup: describe the summarization feature, prompt design, caching beha
 
 **Draft notes:**
 - **Feedback summarization** — chosen because it directly addresses the stated pain point: feedback scattered across Slack threads with no synthesis. On any artifact detail page, "Summarize Feedback" produces a structured digest: overall assessment, open issues, suggestions, questions, approval count.
-- Cache-first: result stored in `feedback_summaries` with `feedback_count` at generation time. If current count matches, the cached summary is returned without calling Claude. Only regenerates when feedback has been added since the last summary, or `force_refresh` is set.
+- Powered by **Gemini** (`@google/genai`, model: `gemini-2.5-flash` by default). Text-only input — no grounding, images, or audio needed.
+- Cache-first: result stored in `feedback_summaries` with `feedback_count` at generation time. If current count matches, the cached summary is returned without calling Gemini. Only regenerates when feedback has been added since the last summary, or `force_refresh` is set.
 - `model` and `prompt_version` are stored with each summary for transparency in this writeup.
 - Feature is immediately testable from seeded artifacts (pre-populated with feedback across all four types).
 
@@ -72,7 +73,7 @@ _[Final writeup: live URL, env var list, Supabase project details. Fill in after
 **Draft notes:**
 - Next.js app deployed to Vercel from this repo
 - Supabase hosted project (Postgres + private Storage bucket)
-- Required env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ARTIFACT_HUB_ADMIN_KEY`, `ANTHROPIC_API_KEY`
+- Required env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ARTIFACT_HUB_ADMIN_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`
 
 ---
 

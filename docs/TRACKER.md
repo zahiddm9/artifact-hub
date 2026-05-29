@@ -29,9 +29,10 @@ Phase 2 — Core Web
 
 ## Blockers and decisions
 
+* **LLM provider switched to Gemini** — `@anthropic-ai/sdk` removed; `@google/genai` installed. Summarization will use `GEMINI_API_KEY` + `GEMINI_MODEL` (default `gemini-2.5-flash`). Decision: avoid unnecessary Anthropic API costs; Gemini Flash is sufficient for text-only feedback summarization.
 * **Manual Supabase setup required before Phase 2 can use real data:**
   1. Create a Supabase project
   2. Run `supabase/migrations/001_initial.sql` (`npx supabase db push`)
   3. Create a private `artifacts` storage bucket
-  4. Fill in `.env.local` with real credentials
+  4. Fill in `.env.local` with real credentials (`GEMINI_API_KEY` instead of `ANTHROPIC_API_KEY`)
 * No code blockers

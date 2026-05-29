@@ -68,7 +68,7 @@ Routes:
 
 **MCP server** — Node.js stdio process in `/mcp`. Reviewer adds it to Claude Desktop config with `ARTIFACT_HUB_API_KEY` env var. MCP tools call `/api/mcp/*` with `x-api-key` header.
 
-**Claude API** — called server-side from `src/lib/services/summarize.ts`. Cache-first: if `feedback_summaries.feedback_count` matches current count, return cached. Only calls Claude when summary is missing, stale, or `force_refresh: true`.
+**Gemini API** — called server-side from `src/lib/services/summarize.ts` using `@google/genai`. Cache-first: if `feedback_summaries.feedback_count` matches current count, return cached. Only calls Gemini when summary is missing, stale, or `force_refresh: true`. Model configured via `GEMINI_MODEL` env var (default: `gemini-2.5-flash`).
 
 **Service layer** — `/api/*` and `/api/mcp/*` routes are thin. All logic lives in `src/lib/services/`. MCP routes add only the `auth.ts` key check before calling the same service functions.
 
@@ -131,7 +131,7 @@ artifact_id     uuid UNIQUE NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE
 summary         jsonb NOT NULL
   -- { overall_assessment, open_issues[], suggestions[], questions[], approval_count }
 feedback_count  int4 NOT NULL          -- count at generation time; staleness indicator
-model           text                   -- e.g. "claude-sonnet-4-6"
+model           text                   -- e.g. "gemini-2.5-flash"
 prompt_version  text                   -- e.g. "v1"
 generated_at    timestamptz NOT NULL
 ```

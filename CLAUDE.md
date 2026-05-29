@@ -50,7 +50,7 @@ Two packages: `src/` (Next.js app, deploys to Vercel) and `mcp/` (Node.js stdio 
 
 **Feedback summarization (the LLM feature):**
 - Entry point: `src/lib/services/summarize.ts`
-- Cache-first: compare `feedback_summaries.feedback_count` against current `COUNT(feedback)`. Return cached if equal. Call Claude only when missing, stale, or `force_refresh: true`.
+- Cache-first: compare `feedback_summaries.feedback_count` against current `COUNT(feedback)`. Return cached if equal. Call Gemini only when missing, stale, or `force_refresh: true`.
 - Result stored in `feedback_summaries` as JSONB with `model`, `prompt_version`, `feedback_count`, `generated_at`
 - Summary shape: `{ overall_assessment, open_issues[], suggestions[], questions[], approval_count }`
 
@@ -60,7 +60,7 @@ Two packages: `src/` (Next.js app, deploys to Vercel) and `mcp/` (Node.js stdio 
 
 - Never print, commit, or paste real environment variable values
 - Use `.env.example` for variable names only — no values
-- Do not expose `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`, `ARTIFACT_HUB_ADMIN_KEY`, or any Vercel tokens in logs, screenshots, commits, or `WRITEUP.md`
+- Do not expose `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `ARTIFACT_HUB_ADMIN_KEY`, or any Vercel tokens in logs, screenshots, commits, or `WRITEUP.md`
 
 ## Key env vars
 
@@ -70,7 +70,8 @@ Two packages: `src/` (Next.js app, deploys to Vercel) and `mcp/` (Node.js stdio 
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only (storage + admin queries) |
 | `ARTIFACT_HUB_ADMIN_KEY` | `/api/mcp/*` auth check + MCP server config |
-| `ANTHROPIC_API_KEY` | `summarize.ts` service |
+| `GEMINI_API_KEY` | `summarize.ts` service |
+| `GEMINI_MODEL` | `summarize.ts` service (defaults to `gemini-2.5-flash` if unset) |
 
 ## Database
 
@@ -81,7 +82,7 @@ Four tables: `artifacts`, `feedback`, `share_links`, `feedback_summaries`. Migra
 - Never generate a signed URL before the access check passes
 - Route handlers are thin; all logic goes in `src/lib/services/`
 - No logic duplication between `/api/*` and `/api/mcp/*` routes
-- Summarization is always cache-first — do not call Claude if `feedback_count` is unchanged
+- Summarization is always cache-first — do not call Gemini if `feedback_count` is unchanged
 - Append-only artifacts: no edit or delete endpoints
 - Work one phase at a time — do not start the next phase until the current phase is validated, `docs/TRACKER.md` is updated, and changes are committed
 - Before broad architectural changes, explain the tradeoff and ask for confirmation
