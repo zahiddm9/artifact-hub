@@ -236,6 +236,26 @@ Product-quality gap audit completed via `product-requirements-reviewer` agent. P
 - Session logs — need copy to `claude-sessions/` and commit
 - Walkthrough — needs section added to WRITEUP.md
 
+### Finishing Improvements Pass (complete)
+
+Plan: `docs/plans/2026-05-29-finishing-improvements.md`. 9 commits covering UX polish, MCP workflow quality, and the owner/visitor demo model.
+
+**UX polish**
+- `fa43ae6` — PDF fallback "Open in new tab ↗" link below iframe (`ArtifactPreview.tsx`). Fixes blank box on mobile/iOS Safari for required content type.
+- `c071675` — Gallery subtitle: "Browse and manage" → "Browse, review, and share AI-generated content"; summary footer adds `generated_at` timestamp (`page.tsx`, `FeedbackSummary.tsx`).
+- `92463c1` — Share link expiry always visible below artifact title; expired/not-found page copy is now actionable ("Ask the sender to create a new link…") (`share/[token]/page.tsx`).
+- `e338fdf` — ShareButton: `cursor-pointer` on both buttons; Copy shows "Copied!" in green for 2 seconds then resets (`ShareButton.tsx`).
+
+**Owner/visitor demo toggle**
+- `98f3342` — Gallery toggle: Visitor (public-only, read-only) vs Owner (all artifacts including unlisted with amber badge). `clearAll` preserves `?view=` param. (`page.tsx`, `ArtifactCard.tsx`, `GalleryFilter.tsx`).
+- `85bc4e7` — Visitor mode hides Publish button; owner banner updated to "Owner view — you can see and publish all artifacts including unlisted." (`Header.tsx`, `page.tsx`).
+- Share link and direct artifact detail pages remain open for feedback regardless of mode — those are for explicitly invited reviewers.
+
+**MCP workflow quality**
+- `9db7793` — Next-step hints added to all 7 tool responses: `list_artifacts` → get_artifact prompt; `get_artifact` → summarize or add_feedback based on feedback count; `add_feedback` → suggest summary; `update_feedback_status` → regenerate digest on resolve; `create_share_link` → explains what the link enables; `publish_artifact` → suggests next action; `summarize_feedback` → adds `generated_at` to metadata line. MCP dist rebuilt.
+
+**Final state:** 0 lint errors · typecheck clean · 16/16 tests pass · MCP builds clean.
+
 ## In progress
 
 * P0 gap resolution: RLS migration, session logs, walkthrough
