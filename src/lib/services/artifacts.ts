@@ -6,12 +6,14 @@ export async function listArtifacts({
   type,
   tags,
   visibility,
+  search,
   limit = 50,
   offset = 0,
 }: {
   type?: ArtifactType;
   tags?: string[];
   visibility?: ArtifactVisibility;
+  search?: string;
   limit?: number;
   offset?: number;
 } = {}): Promise<ServiceResult<Artifact[]>> {
@@ -25,6 +27,10 @@ export async function listArtifacts({
   if (visibility) query = query.eq("visibility", visibility);
   if (type) query = query.eq("type", type);
   if (tags && tags.length > 0) query = query.overlaps("tags", tags);
+  if (search?.trim()) {
+    const q = `%${search.trim()}%`;
+    query = query.or(`title.ilike.${q},description.ilike.${q}`);
+  }
 
   const { data, error } = await query;
   if (error) return { ok: false, status: 500, message: error.message };
