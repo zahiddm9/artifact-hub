@@ -22,15 +22,16 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return DEFAULT_THEME;
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    return stored && isValidTheme(stored) ? stored : DEFAULT_THEME;
-  });
+  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
 
   useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
+    if (stored && isValidTheme(stored)) {
+      applyTheme(stored);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setThemeState(stored);
+    }
+  }, []);
 
   function setTheme(next: Theme) {
     localStorage.setItem(STORAGE_KEY, next);
