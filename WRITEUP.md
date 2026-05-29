@@ -40,6 +40,8 @@ These are intentional cuts under a 2-day timebox, each made to protect the core 
 
 **Single repository, two deployables.** `src/` is the Next.js app (Vercel); `mcp/` is a standalone Node.js stdio MCP server the reviewer runs locally. They share nothing at runtime except the HTTP contract.
 
+**Stack choices.** Next.js 16 App Router was chosen for its tight server/client co-location — server components fetch data at the edge, client components handle interactivity, and Server Actions let the web UI invoke service-layer functions directly without exposing public HTTP mutation endpoints. TypeScript across both packages provides compile-time safety for the shared type surface (visibility enums, feedback status, service result types). Supabase was chosen because it bundles managed Postgres, private object storage with signed URL support, and row-level security in a single project — no additional infrastructure to operate. Vercel was chosen for zero-config Next.js deployment: push to GitHub, set env vars, get a global CDN. Both are intentionally fast-to-operate choices for a 2-day build; the production evolution section explains the enterprise replacement path.
+
 **Service-layer pattern — the spine of the design.** All business logic lives in `src/lib/services/` (`artifacts`, `feedback`, `share`, `summarize`). Route handlers are thin: parse input, check auth, call a service function, return JSON. Both route trees — the open web routes (`/api/*`) and the key-gated MCP adapter routes (`/api/mcp/*`) — call the *same* service functions. There is no logic duplication between them, which is what lets the web UI and the conversational MCP workflow stay behaviorally identical.
 
 ```
@@ -51,7 +53,9 @@ MCP adapter (/api/mcp/*)    ─┘     (single source of truth)
 mcp/ (stdio) ── HTTP ───────┘
 ```
 
-**Data model.** Four tables: `artifacts`, `feedback`, `share_links`, `feedback_summaries` (migration `001_initial.sql`). Enums for type/visibility/feedback-type/status, GIN index on tags, FK cascades so deleting an artifact cleans up its feedback, links, and summary.
+**Data model.** Four tables: `artifacts`, `feedback`, `share_links`, `feedback_summaries` (migration `001_initial.sql`). Enums for type/visibility/feedback-type/status, GIN index on tags for efficient array-overlap queries, FK cascades so deleting an artifact atomically removes all associated feedback, links, and the summary in a single operation.
+
+**Schema design decisions.** `feedback_summaries` is a separate table with a `UNIQUE artifact_id` constraint rather than a JSONB column on `artifacts`. This keeps `artifacts` append-only (no mutable cache state mixed into core records), enables a clean upsert via `ON CONFLICT artifact_id`, and co-locates the four provenance fields (`model`, `prompt_version`, `feedback_count`, `generated_at`) with the summary JSONB rather than bloating the artifacts table with AI-generated state. The feedback type taxonomy — `approval / suggestion / issue / question` — maps directly to how the summarization prompt categorizes items: approvals roll up to `approval_count`, issues carry independent status tracking (`open / resolved / needs_review`) because they require resolution, and suggestions and questions are informational. Share link tokens use `nanoid(21)` — 21 characters from a 64-character URL-safe alphabet — yielding ~126 bits of entropy: collision-resistant at any realistic scale and non-guessable in practice.
 
 **Storage & signed URLs.** Every file lives in one **private** Supabase bucket. Signed URLs are generated server-side in `src/lib/storage.ts` and *only after the relevant access check passes* — public artifacts get a 1-hour URL; unlisted-via-share-link URLs are capped at `min(1h, time remaining on the link)`. Raw bucket paths (`storage_path`) are stripped from every API response and never reach the client.
 
@@ -63,7 +67,7 @@ mcp/ (stdio) ── HTTP ───────┘
 
 **Auth.** MCP routes validate `x-api-key` against `ARTIFACT_HUB_ADMIN_KEY` with `crypto.timingSafeEqual` (constant-time, to prevent timing-based key enumeration).
 
-**Rate limiting.** `src/middleware.ts` applies per-IP fixed-window limits on the four open POST endpoints — publish 10/min, feedback 30/min, share 20/min, summarize 5/min (Gemini is the most expensive). Returns 429 + `Retry-After`. The store is in-memory (correct for a single-instance demo) with the Upstash/Redis upgrade path documented inline, and the window/count algorithm is extracted as a pure function and unit-tested.
+**Rate limiting.** `src/middleware.ts` applies per-IP fixed-window limits on the four open POST endpoints — publish 10/min, feedback 30/min, share 20/min, summarize 5/min. Fixed-window was chosen over sliding-window: the implementation cost difference is real, and the behavioral difference at these volumes is not. Limits are intentionally asymmetric: summarize is the tightest because it is the only endpoint that makes an external model call (Gemini); feedback is the loosest because it is a plain database write. Returns 429 + `Retry-After`. The store is in-memory (correct for a single-instance demo) with the Upstash/Redis upgrade path documented inline, and the window/count algorithm is extracted as a pure function and unit-tested.
 
 **Frontend / UX.** Next.js App Router with a shared sticky glassmorphism `Header`, a 4-theme token system (SaaS / Creative / Docs / Premium) driven entirely by CSS custom properties with a no-flash inline script that applies the saved theme before hydration, and Lucide iconography. Tag search is client-side (`startsWith` prefix match over a bounded fetch) with the server-side-search migration path documented where the assumption lives — a deliberate, labeled tradeoff rather than a hidden one.
 
@@ -87,6 +91,8 @@ The MCP server (`mcp/`) is a Node.js stdio process the reviewer adds to Claude D
   }
 }
 ```
+
+**Transport: stdio by design.** `stdio` was chosen because the MCP server is a local tool the reviewer runs on their own machine — not a hosted service. There is no server to operate, no TLS to manage, and no port to expose. Claude Desktop spawns the node process and owns the I/O channel. The stdio/HTTP boundary is clean: the MCP server communicates with Claude Desktop over stdio, and communicates with the deployed Vercel app over HTTPS. For a production deployment the right transport is streamable HTTP (the MCP remote server model), which supports per-user OAuth, revocable access, and centrally hosted tooling — already described in the production evolution section.
 
 Each of the **9 tools** makes an HTTP call to its `/api/mcp/*` adapter, with `x-api-key` attached automatically by `mcp/src/client.ts`. The adapter does auth → service call → strips internal fields → returns JSON. Because the adapters hit the same service layer as the web app, the conversational and visual experiences never drift.
 
@@ -122,6 +128,10 @@ So a reviewer can say *"List the artifacts, summarize the roadmap feedback, mark
 
 **Feedback summarization** is the single AI feature, and it maps directly onto the brief's first suggested use case — "summarizing feedback across multiple reviewers" — because that *is* the stated pain point.
 
+**Model selection.** Gemini 2.5 Flash was chosen over GPT-4o, Claude, or the heavier Gemini Pro for three specific reasons. First, **task fit**: summarizing 3–10 short feedback items into a structured 5-field digest is a low-complexity synthesis task — Flash produces quality output for this use case, and using a heavier model would be engineering overkill. Second, **native JSON mode**: the `@google/genai` SDK supports `responseMimeType: "application/json"`, which enforces structured output at the API contract level. Prompting a model to "output JSON" is brittle; having the API enforce the output format is not. Third, **cost and configurability**: Flash is free-tier accessible at demo volumes and fast (~1–2s for this task). The model is injected via the `GEMINI_MODEL` environment variable (defaulting to `gemini-2.5-flash`), so upgrading to Pro or swapping to a different provider entirely is a configuration change, not a code change — the abstraction is intentionally thin.
+
+**Prompt design.** The prompt gives the model the artifact title, description, and the full feedback thread — each item's reviewer name, role, feedback type, and comment. It explicitly maps the four feedback types to four output fields: approvals → `approval_count`, issues → `open_issues[]`, suggestions → `suggestions[]`, questions → `questions[]`. The output contract is a named JSON schema, not a free-text instruction. The `prompt_version: "v1"` stored alongside each cached summary means future prompt iterations are distinguishable from old ones — old cached summaries can be selectively invalidated by version without a full cache wipe.
+
 On any detail page (and via the `summarize_feedback` MCP tool), "Summarize feedback" runs `src/lib/services/summarize.ts`:
 
 1. **Cache-first.** Query `feedback_summaries`. If the stored `feedback_count` equals the live count and no force-refresh, return the cached summary — **no model call**. This keeps the feature cheap and instant in the common case.
@@ -144,6 +154,18 @@ Evidence the system works, not just claims:
 - **Live smoke test** against the Vercel URL: gallery + filters, preview rendering for all three types (HTML iframe, SVG image, PDF with an "open in new tab" fallback for mobile Safari), feedback submit, summarize, share-link create/open, and publish (public lands in gallery; unlisted shows only the share link).
 - **Unlisted enforcement confirmed live:** `/artifacts/[id]` → 403, `/share/[token]` → full detail.
 - **MCP verified in Claude Desktop** against the deployed URL across all 9 tools, including cache-first behavior on `summarize_feedback` and the auto-share-link path on unlisted `publish_artifact`.
+
+---
+
+## Development process
+
+The build followed a structured, phase-driven methodology rather than continuous freestyle coding — the repo history is the audit trail.
+
+**Phase-driven planning.** Every implementation phase started with a written plan committed to `docs/plans/` before any code was touched. Plans specified exact files to create or modify, step-by-step task breakdowns with expected test outputs, and the rationale for each decision. `docs/TRACKER.md` is the execution log: phase completion status, mid-phase decisions, and blockers. This is not documentation added after the fact — it is the working process.
+
+**Feature branch quality gate.** All development happened on feature branches. The CI workflow (`.github/workflows/ci.yml`) — named "Quality Checks" — runs lint, typecheck, and the full test suite on every feature branch push and every pull request. Main is never touched until those checks pass. The branch and commit history mirrors the phase structure: each logical unit of work is a discrete commit with a message describing what changed and why, not just the task name.
+
+**Versioning strategy.** The repo treats its own development history as a first-class artifact. `docs/plans/` contains the design documents. `docs/TRACKER.md` contains the execution log. `claude-sessions/` contains the full Claude Code session logs per the brief. A reviewer can reconstruct every product decision, architectural tradeoff, and implementation choice from the repo alone.
 
 ---
 
