@@ -54,7 +54,7 @@ export function registerArtifactTools(server: McpServer): void {
       if (limit !== undefined) params.set("limit", String(limit));
       if (offset !== undefined) params.set("offset", String(offset));
 
-      const qs = params.size > 0 ? `?${params.toString()}` : "";
+      const qs = params.toString().length > 0 ? `?${params.toString()}` : "";
       const data = (await client.get(`/api/mcp/artifacts${qs}`)) as ArtifactPublic[];
 
       if (data.length === 0) {
@@ -87,15 +87,17 @@ export function registerArtifactTools(server: McpServer): void {
       const data = (await client.get(`/api/mcp/artifacts/${artifact_id}`)) as {
         artifact: ArtifactPublic;
         feedback: FeedbackItem[];
+        feedbackError: string | null;
         signedUrl: string;
       };
 
-      const { artifact, feedback, signedUrl } = data;
+      const { artifact, feedback, feedbackError, signedUrl } = data;
       const desc = artifact.description ? `\nDescription: ${artifact.description}` : "";
       const tagStr = artifact.tags.length ? `\nTags: ${artifact.tags.join(", ")}` : "";
 
-      const feedbackBlock =
-        feedback.length === 0
+      const feedbackBlock = feedbackError
+        ? `(Could not load feedback: ${feedbackError})`
+        : feedback.length === 0
           ? "No feedback yet."
           : feedback
               .map((f, i) => {
@@ -103,6 +105,10 @@ export function registerArtifactTools(server: McpServer): void {
                 return `${i + 1}. [${f.feedback_type}] ● ${f.status}\n   ${f.reviewer_name}${role} — ${fmt(f.created_at)}\n   "${f.comment}"`;
               })
               .join("\n\n");
+
+      const feedbackHeader = feedbackError
+        ? "\nFeedback (unavailable):"
+        : `\nFeedback (${feedback.length} item${feedback.length === 1 ? "" : "s"}):`;
 
       const previewSection = signedUrl
         ? `\nPreview URL (valid 1 hour):\n${signedUrl}`
@@ -113,7 +119,7 @@ export function registerArtifactTools(server: McpServer): void {
         `ID: ${artifact.id} | Type: ${artifact.type.toUpperCase()} | Visibility: ${artifact.visibility}`,
         `Published: ${fmt(artifact.created_at)}${desc}${tagStr}`,
         previewSection,
-        `\nFeedback (${feedback.length} item${feedback.length === 1 ? "" : "s"}):`,
+        feedbackHeader,
         "",
         feedbackBlock,
       ].join("\n");

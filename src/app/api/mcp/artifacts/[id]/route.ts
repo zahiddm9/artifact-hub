@@ -33,6 +33,7 @@ export async function GET(
 
   const { storage_path: _, ...publicArtifact } = artifactResult.data;
   const feedback = feedbackResult.ok ? feedbackResult.data : [];
+  const feedbackError = feedbackResult.ok ? null : feedbackResult.message;
 
-  return NextResponse.json({ artifact: publicArtifact, feedback, signedUrl });
+  return NextResponse.json({ artifact: publicArtifact, feedback, feedbackError, signedUrl });
 }

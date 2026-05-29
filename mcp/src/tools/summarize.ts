@@ -54,8 +54,7 @@ export function registerSummarizeTools(server: McpServer): void {
         s.questions.length > 0
           ? `\nQuestions (${s.questions.length}):\n${s.questions.map((x) => `• ${x}`).join("\n")}`
           : "";
-      const approvalLine =
-        s.approval_count > 0 ? `\nApprovals: ${s.approval_count}` : "";
+      const approvalLine = `\nApprovals: ${s.approval_count}`;
 
       const text = [
         "Feedback Summary",

@@ -1,5 +1,5 @@
 const rawBase = process.env.ARTIFACT_HUB_BASE_URL ?? "http://localhost:3000";
-const baseUrl = rawBase.replace(/\/$/, "");
+export const baseUrl = rawBase.replace(/\/$/, "");
 const apiKey = process.env.ARTIFACT_HUB_ADMIN_KEY ?? "";
 
 async function request(path: string, init: RequestInit = {}): Promise<unknown> {

@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import * as client from "../client.js";
+import { baseUrl } from "../client.js";
 
 interface ShareLink {
   token: string;
@@ -31,7 +32,6 @@ export function registerShareTools(server: McpServer): void {
         label,
       })) as ShareLink;
 
-      const baseUrl = (process.env.ARTIFACT_HUB_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
       const shareUrl = `${baseUrl}/share/${data.token}`;
       const expiresDate = new Date(data.expires_at).toLocaleDateString("en-US", {
         month: "long",

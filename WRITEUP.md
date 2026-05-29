@@ -46,7 +46,7 @@ _[Final writeup: system diagram or prose description. Fill in after implementati
 _[Final writeup: MCP config snippet, tool list, example conversation. Fill in after implementation.]_
 
 **Draft notes:**
-- MCP server is a Node.js stdio process in `/mcp`. Reviewer adds it to Claude Desktop config with `ARTIFACT_HUB_API_KEY` and `ARTIFACT_HUB_BASE_URL` env vars.
+- MCP server is a Node.js stdio process in `/mcp`. Reviewer adds it to Claude Desktop config with `ARTIFACT_HUB_ADMIN_KEY` and `ARTIFACT_HUB_BASE_URL` env vars.
 - MCP tools call `/api/mcp/*` HTTP adapter routes. The API key is the access grant — MCP callers can list and access unlisted artifacts, bypass the visibility check, and perform write actions.
 - MCP is on the critical path. Minimum required tools verified before final deploy: `list_artifacts`, `get_artifact`, `create_share_link`, `summarize_feedback`. Then: `publish_artifact`, `add_feedback`, `update_feedback_status`.
 - 7 tools total: `list_artifacts`, `get_artifact`, `publish_artifact`, `add_feedback`, `update_feedback_status`, `create_share_link`, `summarize_feedback`.

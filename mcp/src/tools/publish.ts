@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import * as client from "../client.js";
+import { baseUrl } from "../client.js";
 
 interface PublishResponse {
   artifact: {
@@ -42,10 +43,6 @@ export function registerPublishTools(server: McpServer): void {
       })) as PublishResponse;
 
       const { artifact, shareLink } = data;
-      const baseUrl = (process.env.ARTIFACT_HUB_BASE_URL ?? "http://localhost:3000").replace(
-        /\/$/,
-        ""
-      );
 
       if (artifact.visibility === "unlisted" && shareLink) {
         const shareUrl = `${baseUrl}/share/${shareLink.token}`;

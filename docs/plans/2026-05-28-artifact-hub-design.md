@@ -66,7 +66,7 @@ Routes:
 - Unlisted via share link → signed URL with TTL = `min(1h, expires_at − now())`
 - Expired or invalid token → 403, no URL generated
 
-**MCP server** — Node.js stdio process in `/mcp`. Reviewer adds it to Claude Desktop config with `ARTIFACT_HUB_API_KEY` env var. MCP tools call `/api/mcp/*` with `x-api-key` header.
+**MCP server** — Node.js stdio process in `/mcp`. Reviewer adds it to Claude Desktop config with `ARTIFACT_HUB_ADMIN_KEY` and `ARTIFACT_HUB_BASE_URL` env vars. MCP tools call `/api/mcp/*` with `x-api-key` header.
 
 **Gemini API** — called server-side from `src/lib/services/summarize.ts` using `@google/genai`. Cache-first: if `feedback_summaries.feedback_count` matches current count, return cached. Only calls Gemini when summary is missing, stale, or `force_refresh: true`. Model configured via `GEMINI_MODEL` env var (default: `gemini-2.5-flash`).
 

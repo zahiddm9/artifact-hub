@@ -86,6 +86,18 @@ MCP server (`mcp/` package — Node.js stdio, ESM):
 * All 7 MCP tools registered in `mcp/src/index.ts`
 * Web build clean — 17 routes; MCP `tsc` clean
 
+### Pre-Phase-6 MCP hardening (complete)
+
+Fixes from MCP workflow review before Phase 6:
+* **B1 — env var name** — `ARTIFACT_HUB_API_KEY` → `ARTIFACT_HUB_ADMIN_KEY` in `WRITEUP.md` and design doc; now matches `mcp/src/client.ts` and `src/lib/auth.ts`
+* **B2 — startup warning** — `mcp/src/index.ts` writes to stderr (not stdout) when `ARTIFACT_HUB_ADMIN_KEY` or `ARTIFACT_HUB_BASE_URL` is missing, so misconfigured Claude Desktop shows a clear error instead of opaque 401s
+* **I1 — baseUrl deduplication** — exported from `mcp/src/client.ts`; `share.ts` and `publish.ts` import it instead of re-reading the env var inline
+* **I2 — feedback failure surface** — `GET /api/mcp/artifacts/[id]` now returns `feedbackError: string | null`; `get_artifact` tool renders "(Could not load feedback: …)" and "Feedback (unavailable):" header instead of silent empty list
+* **I3 — URLSearchParams.size** — replaced with `params.toString().length > 0` for Node 18 LTS compatibility
+* **I4 — timing-safe auth** — `src/lib/auth.ts` uses `crypto.timingSafeEqual` with same-length guard
+* **P2 — approval_count: 0** — always shown in `summarize_feedback` output (was omitted when zero)
+* Both builds clean: web (17 routes), mcp (tsc)
+
 ## In progress
 
 * Phase 6 — Seed + Deploy + Verification (not started yet)
