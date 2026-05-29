@@ -205,9 +205,40 @@ Verification: compiled CSS confirms all violet classes present — `bg-violet-60
 
 Unchanged as planned: all zinc structural classes, semantic badges (red/green/blue/amber), secondary outlined buttons, text colors, borders, backgrounds.
 
+### Engineering Quality Pass (complete)
+
+Product-quality gap audit completed via `product-requirements-reviewer` agent. Plan: `docs/plans/2026-05-29-engineering-quality-fixes.md`.
+
+**Lint fixes (commit `9535b4f`)**
+- `src/components/ThemeProvider.tsx` — replaced `useEffect` + `setThemeState` with lazy `useState` initializer reading localStorage; separate DOM-only effect for `applyTheme`. Fixes `react-hooks/set-state-in-effect`.
+- `src/app/share/[token]/page.tsx` — replaced `Date.now()` with `new Date().getTime()`. Fixes `react-hooks/purity`.
+- Result: `npm run lint` → 0 errors, 7 warnings (all pre-existing intentional `_` unused vars)
+
+**Dead code removal (commit `d0f58c0`)**
+- `src/lib/supabase.ts` — removed `createBrowserClient`, `createSupabaseServerClient`, and `@supabase/ssr` import. These were never called and implied a cookie-based SSR auth layer that doesn't exist. `createAdminClient` is the only export.
+
+**Vitest + tests (commit `87bd765`)**
+- `vitest` installed as devDependency
+- `vitest.config.ts` — node environment, `@` alias matching tsconfig
+- `package.json` — added `test`, `test:run`, `typecheck` scripts
+- `src/lib/auth.ts` — `import` → `import type` for `NextRequest` (correct; only used as type annotation)
+- `src/lib/services/summarize.ts` — exported `isValidSummaryData` for testing
+- `src/lib/auth.test.ts` — 5 tests for `isMcpAuthorized` (correct key, wrong key same length, length mismatch, missing header, missing env var)
+- `src/lib/services/summarize.test.ts` — 11 tests for `isValidSummaryData` (valid shape, empty arrays, null, string, each missing/wrong-typed required field)
+- All 16 tests pass in ~267ms
+
+**GitHub Actions CI (commit `e0ef154`)**
+- `.github/workflows/ci.yml` — runs on push to `main` and all PRs: `npm ci` → `npm run lint` → `npm run typecheck` → `npm run test:run`
+- No `next build` (avoids secrets/prerender failure; Vercel handles production builds)
+
+**Remaining P0 gaps (not yet addressed):**
+- RLS migration `002_rls.sql` — SQL written in `docs/plans/2026-05-29-product-correctness-fixes.md`, needs `npx supabase db push`
+- Session logs — need copy to `claude-sessions/` and commit
+- Walkthrough — needs section added to WRITEUP.md
+
 ## In progress
 
-* Manual deployment and verification (Phase 6, pending Vercel)
+* P0 gap resolution: RLS migration, session logs, walkthrough
 
 ## Blockers and decisions
 
