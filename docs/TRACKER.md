@@ -117,7 +117,7 @@ Manual steps remaining:
 3. Smoke-test key flows on live URL
 4. Run all 7 MCP tools against deployed URL in Claude Desktop
 5. Fill in live URL + demo admin key in WRITEUP.md
-6. Copy session logs to `sessions/` folder per requirements.md
+6. Copy session logs to `claude-sessions/` folder (note: requirements.md says `sessions/` but the submission folder is `claude-sessions/`)
 
 ## In progress
 

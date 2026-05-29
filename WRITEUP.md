@@ -125,7 +125,9 @@ The feature is immediately testable from the seeded artifacts, which have 5 feed
 
 ## Demo admin key
 
-`[Fill in after deployment — document the demo API key here for the reviewer's MCP config and direct API testing. Do not commit the actual key value; paste it in the submission email or a separate secure channel.]`
+The demo `ARTIFACT_HUB_ADMIN_KEY` for MCP config and direct API testing will be provided privately with the submission — not committed to this repository.
+
+To test the MCP server, add the key to the Claude Desktop config as shown in `mcp/README.md`.
 
 ---
 
