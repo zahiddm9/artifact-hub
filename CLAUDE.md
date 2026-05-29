@@ -6,22 +6,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Artifact Hub — a platform for publishing, browsing, reviewing, and sharing AI-generated content. Full design: `docs/plans/2026-05-28-artifact-hub-design.md`.
 
+## Execution tracking
+
+`docs/TRACKER.md` is the source of truth for execution state.
+
+- At the start of each phase: read `docs/TRACKER.md`, confirm the current phase and active tasks, and list files you plan to create or modify before touching anything
+- During implementation: update `docs/TRACKER.md` only after meaningful milestones, blockers, decisions, or phase completion — not as a running diary
+- At the end of each phase: run relevant validation checks, summarize what changed, update `docs/TRACKER.md`, and commit the completed phase
+
 ## Commands
 
 ```bash
-# Web app (Next.js)
+# Web app (Next.js — run from repo root)
 npm run dev          # dev server on localhost:3000
 npm run build        # production build
 npm run lint         # ESLint
 
-# MCP server (from /mcp)
-npm run build        # compile TypeScript
-npm run start        # run stdio server (for testing outside Claude Desktop)
+# MCP server
+cd mcp && npm run build   # compile TypeScript
+cd mcp && npm run start   # run stdio server (for testing outside Claude Desktop)
 
 # Database
-# Apply migrations manually via Supabase dashboard or:
 npx supabase db push
-npx supabase db reset --linked   # reset + re-seed on hosted project
+# DESTRUCTIVE — only run after explicit confirmation:
+npx supabase db reset --linked   # wipes hosted project and re-seeds
 ```
 
 ## Architecture
@@ -48,6 +56,12 @@ Two packages: `src/` (Next.js app, deploys to Vercel) and `mcp/` (Node.js stdio 
 
 **MCP server** (`/mcp/src/index.ts`): stdio transport, 7 tools. Tools call `/api/mcp/*` with the API key from env. Minimum working set: `list_artifacts`, `get_artifact`, `create_share_link`, `summarize_feedback`. `update_feedback_status` is MCP/API-only — not exposed in the web UI.
 
+## Secret safety
+
+- Never print, commit, or paste real environment variable values
+- Use `.env.example` for variable names only — no values
+- Do not expose `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`, `ARTIFACT_HUB_ADMIN_KEY`, or any Vercel tokens in logs, screenshots, commits, or `WRITEUP.md`
+
 ## Key env vars
 
 | Var | Used by |
@@ -69,3 +83,5 @@ Four tables: `artifacts`, `feedback`, `share_links`, `feedback_summaries`. Migra
 - No logic duplication between `/api/*` and `/api/mcp/*` routes
 - Summarization is always cache-first — do not call Claude if `feedback_count` is unchanged
 - Append-only artifacts: no edit or delete endpoints
+- Work one phase at a time — do not start the next phase until the current phase is validated, `docs/TRACKER.md` is updated, and changes are committed
+- Before broad architectural changes, explain the tradeoff and ask for confirmation
