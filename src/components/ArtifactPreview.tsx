@@ -24,13 +24,23 @@ export function ArtifactPreview({ type, signedUrl, title }: Props) {
 
   if (type === "pdf") {
     return (
-      <div className="rounded-xl border border-border overflow-hidden" style={{ height: 700 }}>
-        <iframe
-          src={signedUrl}
-          title={title}
-          className="h-full w-full"
-          loading="lazy"
-        />
+      <div className="space-y-2">
+        <div className="rounded-xl border border-border overflow-hidden" style={{ height: 700 }}>
+          <iframe
+            src={signedUrl}
+            title={title}
+            className="h-full w-full"
+            loading="lazy"
+          />
+        </div>
+        <a
+          href={signedUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block text-sm text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+        >
+          Open PDF in new tab ↗
+        </a>
       </div>
     );
   }
