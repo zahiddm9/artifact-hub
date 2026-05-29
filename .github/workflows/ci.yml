@@ -1,11 +1,11 @@
-name: CI
+name: Quality Checks
 
 on:
   push:
     branches: [feature/**]
 
 jobs:
-  ci:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
