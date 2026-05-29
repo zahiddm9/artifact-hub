@@ -59,6 +59,15 @@ export function registerPublishTools(server: McpServer): void {
         };
       }
 
+      if (artifact.visibility === "unlisted" && !shareLink) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `Artifact published: "${artifact.title}"\nID: ${artifact.id} | Type: ${artifact.type.toUpperCase()} | Visibility: unlisted\n\nWARNING: Share link creation failed. The artifact is saved but inaccessible via the web UI.\nTo recover, call create_share_link with artifact_id: ${artifact.id}`,
+          }],
+        };
+      }
+
       return {
         content: [{
           type: "text" as const,

@@ -113,6 +113,13 @@ export async function POST(request: NextRequest) {
     if (shareResult.ok) {
       return NextResponse.json({ artifact: publicArtifact, shareLink: shareResult.data }, { status: 201 });
     }
+    return NextResponse.json(
+      {
+        artifact: publicArtifact,
+        shareError: `Artifact saved (ID: ${result.data.id}) but share link creation failed. Use the MCP create_share_link tool with this ID to recover.`,
+      },
+      { status: 201 }
+    );
   }
 
   return NextResponse.json({ artifact: publicArtifact }, { status: 201 });
