@@ -9,29 +9,16 @@ import { DeleteCardButton } from "./DeleteCardButton";
 import type { Artifact, ArtifactType } from "@/types";
 
 /*
- * TAG FILTERING — CLIENT-SIDE (current phase)
+ * SEARCH ARCHITECTURE
  *
- * Why this is acceptable now: the gallery is a bounded, single-tenant dataset
- * (tens to low hundreds of artifacts). Fetching all type-filtered records and
- * filtering tags in the browser is imperceptible at this scale and avoids a
- * round-trip per keystroke.
+ * Name search: debounced → ?search= URL param → server re-fetch via Supabase ilike.
+ * Tag search:  client-side prefix match over the server-fetched result set.
  *
- * Production-scale path: replace the client-side filter below with a debounced
- * server-side search. Options in order of complexity:
- *   1. Postgres GIN index on the `tags` array + pg_trgm for case-insensitive
- *      prefix matching (`WHERE EXISTS (SELECT 1 FROM unnest(tags) t WHERE t ILIKE $1)`).
- *      Fits a single-table model with moderate tag cardinality.
- *   2. Normalized `artifact_tags(artifact_id, tag)` table with a btree index on
- *      lower(tag). Enables efficient exact + prefix queries and tag analytics.
- *   3. Postgres full-text search or trigram index on a `tags_tsv` generated column
- *      if tags are long phrases rather than short slugs.
- *   4. Dedicated search service (Typesense, Meilisearch, or Elasticsearch) if the
- *      catalog grows past ~10k artifacts or requires faceting, ranking, and typo
- *      tolerance.
+ * Both share a single input. A mode toggle switches between them.
  *
- * To migrate: replace `useLocalTagFilter` with a debounced `useSearchParams` push
- * and move the filtering back into `listArtifacts` (or a new `searchArtifacts`
- * service function). The component's prop interface and render tree stay the same.
+ * Production-scale path for tag search: replace the client-side filter with a
+ * debounced server-side query (GIN index on tags array or normalized tags table).
+ * The component interface stays the same — only the effect wiring changes.
  */
 
 const TYPES: { value: ArtifactType | ""; label: string; icon: typeof Layers }[] = [
@@ -55,74 +42,110 @@ export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
   const currentType = searchParams.get("type") ?? "";
   const currentSearch = searchParams.get("search") ?? "";
 
-  // Search input: local state debounced to URL param → server re-fetch.
-  const [searchInput, setSearchInput] = useState(() => currentSearch);
-  const isFirstRender = useRef(true);
+  // Single search input shared by both modes
+  const [query, setQuery] = useState(() => currentSearch);
+  const [mode, setMode] = useState<"name" | "tag">(() =>
+    currentSearch ? "name" : "name"
+  );
+  const isFirstQueryRender = useRef(true);
 
+  // When mode switches to "tag": clear any ?search= URL param immediately
   useEffect(() => {
-    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    if (mode === "tag") {
+      const params = new URLSearchParams(searchParams.toString());
+      if (params.has("search")) {
+        params.delete("search");
+        startTransition(() => router.push(`${pathname}?${params.toString()}`));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
+  // Name mode: debounce query → ?search= URL param → server re-fetch
+  useEffect(() => {
+    if (isFirstQueryRender.current) { isFirstQueryRender.current = false; return; }
+    if (mode !== "name") return;
     const timer = setTimeout(() => {
       startTransition(() => {
         const params = new URLSearchParams(searchParams.toString());
-        if (searchInput.trim()) params.set("search", searchInput.trim());
+        if (query.trim()) params.set("search", query.trim());
         else params.delete("search");
         router.push(`${pathname}?${params.toString()}`);
       });
     }, 300);
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchInput]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
-  // Local state: decoupled from URL so typing never triggers router.push.
-  // Initialised once from the URL so a bookmarked ?tag= still pre-fills the input.
-  const [tagInput, setTagInput] = useState(() => searchParams.get("tag") ?? "");
-
-  // Client-side partial, case-insensitive tag filter.
-  // Runs synchronously in the browser — no network round-trip per keystroke.
+  // Tag mode: client-side prefix match over the fetched result set
   const filteredArtifacts = useMemo(() => {
-    const q = tagInput.trim().toLowerCase();
-    if (!q) return artifacts;
+    if (mode !== "tag" || !query.trim()) return artifacts;
+    const q = query.trim().toLowerCase();
     return artifacts.filter((a) =>
       a.tags.some((t) => t.toLowerCase().startsWith(q))
     );
-  }, [artifacts, tagInput]);
+  }, [artifacts, query, mode]);
 
-  const hasFilter = currentType || tagInput || searchInput;
+  const hasFilter = currentType || query;
 
-  // Type filter: discrete click → URL param → server re-fetch. Correct path for
-  // access-controlled, visibility-filtered, server-authoritative data.
   function updateType(value: string) {
     startTransition(() => {
       const params = new URLSearchParams(searchParams.toString());
       if (value) params.set("type", value);
       else params.delete("type");
-      // Drop tag from URL — it lives in local state; no need to round-trip it.
-      params.delete("tag");
       router.push(`${pathname}?${params.toString()}`);
     });
   }
 
   function clearAll() {
-    setTagInput("");
-    setSearchInput("");
+    setQuery("");
     const currentView = searchParams.get("view");
-    router.push(currentView ? `${pathname}?view=${currentView}` : pathname);
+    startTransition(() => {
+      const params = new URLSearchParams();
+      if (currentView) params.set("view", currentView);
+      router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
+    });
+  }
+
+  function switchMode(next: "name" | "tag") {
+    setQuery("");
+    setMode(next);
   }
 
   return (
     <>
       {/* Filter row */}
       <div className="mb-8 flex flex-wrap items-center gap-3" aria-busy={isPending}>
-        {/* Name search — server-side, debounced URL param */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search by name…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="rounded-lg border border-border bg-input pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-48"
-          />
+
+        {/* Unified search bar with mode toggle */}
+        <div className="flex items-center rounded-lg border border-border bg-input overflow-hidden focus-within:ring-2 focus-within:ring-ring">
+          {/* Mode toggle */}
+          <div className="flex border-r border-border">
+            {(["name", "tag"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => switchMode(m)}
+                className={`px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                  mode === m
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                }`}
+              >
+                {m === "name" ? "Name" : "Tag"}
+              </button>
+            ))}
+          </div>
+          {/* Search icon + input */}
+          <div className="relative flex items-center">
+            <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              placeholder={mode === "name" ? "Search by name…" : "Filter by tag…"}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="bg-transparent pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none w-48"
+            />
+          </div>
         </div>
 
         {/* Type filter — server-side via URL */}
@@ -147,15 +170,6 @@ export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
           })}
         </div>
 
-        {/* Tag search — client-side, local state only, no router.push per keystroke */}
-        <input
-          type="text"
-          placeholder="Filter by tag…"
-          value={tagInput}
-          onChange={(e) => setTagInput(e.target.value)}
-          className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
-
         {hasFilter && (
           <button
             onClick={clearAll}
@@ -165,7 +179,6 @@ export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
           </button>
         )}
 
-        {/* Spinner only fires on type-filter navigation, not on tag keystrokes */}
         {isPending && (
           <svg
             className="h-4 w-4 animate-spin text-muted-foreground"
@@ -180,13 +193,15 @@ export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
         )}
       </div>
 
-      {/* Results — rendered here so tag filtering never leaves this component */}
+      {/* Results */}
       {filteredArtifacts.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-12 text-center">
           <p className="text-muted-foreground">
-            {searchInput ? `No artifacts match "${searchInput}".` : tagInput ? `No artifacts tagged "${tagInput}".` : "No artifacts found."}
+            {query
+              ? `No artifacts match "${query}".`
+              : "No artifacts found."}
           </p>
-          {!tagInput && (
+          {!query && (
             <Link
               href="/publish"
               className="mt-4 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
@@ -194,12 +209,12 @@ export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
               Publish the first one
             </Link>
           )}
-          {tagInput && (
+          {query && (
             <button
-              onClick={() => setTagInput("")}
+              onClick={() => setQuery("")}
               className="mt-4 text-sm text-primary transition-colors hover:text-primary/80 underline cursor-pointer block mx-auto"
             >
-              Clear tag filter
+              Clear search
             </button>
           )}
         </div>
