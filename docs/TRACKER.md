@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Phase 3 — Feedback + LLM
+Phase 4 — MCP Core Slice
 
 ## Done
 
@@ -33,9 +33,19 @@ Phase 3 — Feedback + LLM
 * Auto-share-link created on publish for unlisted artifacts; success screen shows copy-able URL
 * `npm run build` clean — all 9 routes registered
 
+### Phase 3 — Feedback + LLM (complete)
+
+* `src/lib/services/feedback.ts` — listFeedback, addFeedback
+* `src/lib/services/summarize.ts` — getCachedSummary, getSummary (cache-first: returns cached if feedback_count unchanged; calls Gemini + upserts when missing, stale, or force_refresh=true)
+* API routes: `GET/POST /api/artifacts/[id]/feedback`, `POST /api/artifacts/[id]/summarize`
+* Components: FeedbackList (server, type/status badges), FeedbackForm (client, router.refresh() on submit), FeedbackSummary (client, stale badge + generate/regenerate button, digest panels)
+* Detail page and share link page both updated with feedback + summary sections
+* Prompt version stored as "v1"; model name stored per summary row for transparency
+* `npm run build` clean — 11 routes registered
+
 ## In progress
 
-* Phase 3 — Feedback + LLM (not started yet)
+* Phase 4 — MCP Core Slice (not started yet)
 
 ## Blockers and decisions
 

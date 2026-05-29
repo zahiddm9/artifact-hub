@@ -1,9 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getArtifact } from "@/lib/services/artifacts";
+import { listFeedback } from "@/lib/services/feedback";
+import { getCachedSummary } from "@/lib/services/summarize";
 import { getPublicArtifactUrl } from "@/lib/storage";
 import { ArtifactPreview } from "@/components/ArtifactPreview";
 import { ShareButton } from "@/components/ShareButton";
+import { FeedbackList } from "@/components/FeedbackList";
+import { FeedbackForm } from "@/components/FeedbackForm";
+import { FeedbackSummary } from "@/components/FeedbackSummary";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -24,7 +29,6 @@ export default async function ArtifactDetailPage({ params }: Props) {
 
   const artifact = result.data;
 
-  // Unlisted artifacts are not accessible via direct URL — use a share link
   if (artifact.visibility === "unlisted") {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
@@ -33,10 +37,7 @@ export default async function ArtifactDetailPage({ params }: Props) {
           <p className="mt-2 text-zinc-500">
             This artifact requires a share link to access.
           </p>
-          <Link
-            href="/"
-            className="mt-4 inline-block text-sm text-zinc-600 underline hover:text-zinc-900"
-          >
+          <Link href="/" className="mt-4 inline-block text-sm text-zinc-600 underline hover:text-zinc-900">
             Back to gallery
           </Link>
         </div>
@@ -44,13 +45,13 @@ export default async function ArtifactDetailPage({ params }: Props) {
     );
   }
 
-  let signedUrl = "";
-  try {
-    signedUrl = await getPublicArtifactUrl(artifact.storage_path);
-  } catch {
-    // Preview will show fallback
-  }
+  const [signedUrlResult, feedbackResult, cachedSummary] = await Promise.all([
+    getPublicArtifactUrl(artifact.storage_path).catch(() => ""),
+    listFeedback(id),
+    getCachedSummary(id),
+  ]);
 
+  const feedback = feedbackResult.ok ? feedbackResult.data : [];
   const TYPE_LABELS: Record<string, string> = { pdf: "PDF", image: "Image", html: "HTML" };
 
   return (
@@ -67,6 +68,7 @@ export default async function ArtifactDetailPage({ params }: Props) {
       </header>
 
       <main className="mx-auto max-w-4xl px-6 py-8 space-y-6">
+        {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -75,9 +77,7 @@ export default async function ArtifactDetailPage({ params }: Props) {
                 {TYPE_LABELS[artifact.type] ?? artifact.type}
               </span>
             </div>
-            {artifact.description && (
-              <p className="text-zinc-600">{artifact.description}</p>
-            )}
+            {artifact.description && <p className="text-zinc-600">{artifact.description}</p>}
             {artifact.tags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
                 {artifact.tags.map((tag) => (
@@ -95,17 +95,30 @@ export default async function ArtifactDetailPage({ params }: Props) {
           <ShareButton artifactId={artifact.id} />
         </div>
 
-        {signedUrl ? (
-          <ArtifactPreview
-            type={artifact.type}
-            signedUrl={signedUrl}
-            title={artifact.title}
-          />
+        {/* Preview */}
+        {signedUrlResult ? (
+          <ArtifactPreview type={artifact.type} signedUrl={signedUrlResult} title={artifact.title} />
         ) : (
           <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-8 text-center text-zinc-500">
             Preview unavailable.
           </div>
         )}
+
+        {/* Feedback summary — only renders when there is feedback */}
+        <FeedbackSummary
+          artifactId={artifact.id}
+          initialSummary={cachedSummary}
+          feedbackCount={feedback.length}
+        />
+
+        {/* Feedback section */}
+        <section className="space-y-3">
+          <h2 className="font-semibold text-zinc-900">
+            Feedback{feedback.length > 0 ? ` (${feedback.length})` : ""}
+          </h2>
+          <FeedbackList feedback={feedback} />
+          <FeedbackForm artifactId={artifact.id} />
+        </section>
 
         <p className="text-xs text-zinc-400">
           Published{" "}
