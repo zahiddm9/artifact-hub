@@ -256,6 +256,54 @@ Plan: `docs/plans/2026-05-29-finishing-improvements.md`. 9 commits covering UX p
 
 **Final state:** 0 lint errors · typecheck clean · 16/16 tests pass · MCP builds clean.
 
+### Owner Delete + Edit Pass (complete)
+
+Plan: `docs/plans/2026-05-29-owner-delete-edit.md`. Full CRUD for owner mode — delete and edit artifacts, delete individual feedback items.
+
+**Service layer**
+- `e2caed4` — `deleteArtifact` (removes storage file + DB row, cascade cleans feedback/share_links/summaries) + `updateArtifact` (PATCH title/description/tags/visibility) added to `artifacts.ts`. `UpdateArtifactBody` added to `types/index.ts`.
+- `311a12f` — `deleteFeedback` added to `feedback.ts`.
+
+**API routes**
+- `70ffb8f` — `DELETE /api/artifacts/[id]` + `PATCH /api/artifacts/[id]` added to existing route file.
+- `311a12f` — `DELETE /api/feedback/[id]` (new route file).
+
+**Gallery — owner mode controls**
+- `c6a0868` — `isOwnerView` propagated through `GalleryFilter` → `ArtifactCard`; cards link to `/artifacts/[id]?view=owner` in owner mode.
+- `1f09fec` — `DeleteCardButton`: trash icon overlaid on each gallery card in owner mode; two-click confirm (first click → "Delete?" for 3s, second click → DELETE + refresh).
+
+**Detail page — owner mode controls**
+- `110e778` — `ArtifactActions` client component: inline edit form (title, description, tags, visibility with select) + delete confirm ("Delete this artifact and all its feedback?" → "Yes, delete" → redirects to owner gallery). Shown only when `?view=owner`.
+- `311a12f` — `DeleteFeedbackButton` on each feedback item in owner mode (same two-click confirm pattern).
+
+**Bug fix**
+- `7161ed0` — Unlisted artifacts blocked owner access on detail page (`if (visibility === "unlisted")` ran before `isOwnerView` check). Fixed to `if (visibility === "unlisted" && !isOwnerView)`.
+
+**MCP**
+- `bebbd14` — `delete_artifact` + `update_artifact` tools registered. `del()` helper added to `mcp/src/client.ts`. Now 9 MCP tools total.
+
+### Hydration + Script Fix (complete)
+
+- `4de90b8` — Reverted `ThemeProvider` lazy `useState` initializer (caused server/client theme mismatch → hydration crash). Back to `useState(DEFAULT_THEME)` + mount-only `useEffect` with `// eslint-disable-next-line` comment. Replaced `<script dangerouslySetInnerHTML>` in `<head>` with `<Script strategy="beforeInteractive">` from `next/script` to silence React 18 script-in-component warning.
+
+### Product Polish Pass (complete)
+
+- `cff78a8` — Gallery subtitle: "Browse, review, and share AI-generated content" → "Browse, review, and share content".
+- `311a12f` — Feedback deletion available to owner on artifact detail page.
+
+### Rate Limiting (complete)
+
+- `43a2050` — `src/middleware.ts`: per-IP fixed-window rate limiting on the four open POST endpoints. Limits: publish 10/min, feedback 30/min, share 20/min, summarize 5/min. Returns 429 with `Retry-After` header. In-memory store (per-instance); comment notes Upstash Redis as the multi-instance upgrade path.
+
+### Test Expansion (complete)
+
+- `0148c88` — Extracted `isShareLinkExpired(expiresAt)` from `validateShareLink` and `checkRateLimit(store, key, max, windowMs, now)` from middleware as pure exported functions. Added two new test files:
+  - `src/lib/services/share.test.ts` — 4 tests: past, future, 1ms expired, 1ms remaining (access-control boundary)
+  - `src/middleware.test.ts` — 4 tests: first request, up to max, max+1 blocked with retryAfter, window reset
+  - Total: **24 tests across 4 files**, all passing
+
+**Final state:** 0 lint errors · typecheck clean · 24/24 tests pass · MCP builds clean (9 tools).
+
 ## In progress
 
 * P0 gap resolution: RLS migration, session logs, walkthrough
