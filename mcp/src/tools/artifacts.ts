@@ -102,7 +102,7 @@ export function registerArtifactTools(server: McpServer): void {
           : feedback
               .map((f, i) => {
                 const role = f.reviewer_role ? ` (${f.reviewer_role})` : "";
-                return `${i + 1}. [${f.feedback_type}] ● ${f.status}\n   ${f.reviewer_name}${role} — ${fmt(f.created_at)}\n   "${f.comment}"`;
+                return `${i + 1}. [${f.feedback_type}] ● ${f.status} | feedback_id: ${f.id}\n   ${f.reviewer_name}${role} — ${fmt(f.created_at)}\n   "${f.comment}"`;
               })
               .join("\n\n");
 

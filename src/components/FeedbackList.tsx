@@ -1,5 +1,6 @@
 import type { Feedback, FeedbackType, FeedbackStatus } from "@/types";
 import { DeleteFeedbackButton } from "./DeleteFeedbackButton";
+import { FeedbackStatusButton } from "./FeedbackStatusButton";
 
 const TYPE_CONFIG: Record<FeedbackType, { label: string; className: string }> = {
   approval:   { label: "Approval",   className: "bg-green-50  text-green-700  ring-green-600/20"  },
@@ -48,11 +49,15 @@ export function FeedbackList({ feedback, isOwnerView = false }: { feedback: Feed
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}
-                >
-                  {status.label}
-                </span>
+                {isOwnerView ? (
+                  <FeedbackStatusButton feedbackId={item.id} currentStatus={item.status} />
+                ) : (
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}
+                  >
+                    {status.label}
+                  </span>
+                )}
                 <span className="text-xs text-muted-foreground">
                   {new Date(item.created_at).toLocaleDateString("en-US", {
                     month: "short",

@@ -2,12 +2,28 @@
 
 import { useState } from "react";
 
-export function ShareButton({ artifactId }: { artifactId: string }) {
+export function ShareButton({
+  artifactId,
+  visibility = "public",
+}: {
+  artifactId: string;
+  visibility?: "public" | "unlisted";
+}) {
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [shareUrl, setShareUrl] = useState("");
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
+    // Public artifacts: just copy the direct URL — no token needed
+    if (visibility === "public") {
+      const url = `${window.location.origin}/artifacts/${artifactId}`;
+      setShareUrl(url);
+      setState("done");
+      navigator.clipboard.writeText(url).catch(() => {});
+      return;
+    }
+
+    // Unlisted artifacts: create an expiring share token (the only access path)
     setState("loading");
     try {
       const res = await fetch("/api/share", {

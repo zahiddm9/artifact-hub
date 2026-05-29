@@ -89,7 +89,7 @@ export default async function ArtifactDetailPage({ params, searchParams }: Props
               </div>
             )}
           </div>
-          <ShareButton artifactId={artifact.id} />
+          <ShareButton artifactId={artifact.id} visibility={artifact.visibility} />
         </div>
 
         {/* Publisher Demo actions */}
