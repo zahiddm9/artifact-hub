@@ -98,13 +98,34 @@ Fixes from MCP workflow review before Phase 6:
 * **P2 — approval_count: 0** — always shown in `summarize_feedback` output (was omitted when zero)
 * Both builds clean: web (17 routes), mcp (tsc)
 
+### Phase 6 — Seed + Deploy + Verification (code complete; deployment pending)
+
+Code deliverables:
+* `supabase/seed-files/product-roadmap.html` — HTML product roadmap (AI-generated design doc)
+* `supabase/seed-files/brand-mockup.svg` — SVG brand identity mockup (image artifact)
+* `supabase/seed.sql` — placeholder comment pointing to seed script
+* `supabase/seed.mjs` — full seed script: uploads 3 files to Supabase Storage, inserts 3 artifacts + 15 feedback entries (5 per artifact, all 4 types); idempotent with --force flag; inline PDF generator with correct xref byte offsets
+* `package.json` — added `"seed": "node supabase/seed.mjs"` script
+* `CLAUDE.md` — updated seed command documentation
+* `mcp/README.md` — Claude Desktop config JSON, env var table, all 7 tools documented, example conversation
+* `WRITEUP.md` — complete final writeup (all draft sections replaced with prose)
+* Build clean — 17 routes, TypeScript OK
+
+Manual steps remaining:
+1. Run `npm run seed` to populate Supabase with sample data
+2. Deploy to Vercel with all 6 env vars set
+3. Smoke-test key flows on live URL
+4. Run all 7 MCP tools against deployed URL in Claude Desktop
+5. Fill in live URL + demo admin key in WRITEUP.md
+6. Copy session logs to `sessions/` folder per requirements.md
+
 ## In progress
 
-* Phase 6 — Seed + Deploy + Verification (not started yet)
+* Manual deployment and verification
 
-## Pending
+## Blockers and decisions
 
-* `mcp/README.md` — Claude Desktop config snippet, tool list, example conversation (Phase 6)
+* Live URL and demo admin key not yet committed — fill in WRITEUP.md after Vercel deploy
 
 ## Blockers and decisions
 

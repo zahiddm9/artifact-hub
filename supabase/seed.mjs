@@ -1,0 +1,390 @@
+#!/usr/bin/env node
+/**
+ * Artifact Hub seed script
+ *
+ * Uploads 3 sample files to Supabase Storage and inserts 3 artifacts + 15 feedback entries.
+ * Safe to re-run: skips if data exists unless --force is passed.
+ *
+ * Usage:
+ *   node supabase/seed.mjs
+ *   node supabase/seed.mjs --force   # wipe existing seed data and re-seed
+ */
+
+import { createClient } from "@supabase/supabase-js";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+const __dir = dirname(fileURLToPath(import.meta.url));
+const FORCE = process.argv.includes("--force");
+const BUCKET = "artifacts";
+
+// ── Env loading ──────────────────────────────────────────────────────────────
+
+function loadEnv(filePath) {
+  const env = {};
+  try {
+    const content = readFileSync(filePath, "utf-8");
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq > 0) {
+        const k = trimmed.slice(0, eq).trim();
+        const v = trimmed.slice(eq + 1).trim();
+        if (k && v) env[k] = v;
+      }
+    }
+  } catch {
+    // .env.local may not exist when run in CI — fall through to process.env
+  }
+  return env;
+}
+
+const localEnv = loadEnv(join(__dir, "../.env.local"));
+const env = { ...localEnv, ...process.env };
+
+const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !serviceKey) {
+  console.error(
+    "ERROR: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env.local"
+  );
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+
+// ── Minimal PDF generator ─────────────────────────────────────────────────────
+
+function buildPdf(title, lines) {
+  const esc = (s) =>
+    s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+
+  const streamParts = [
+    "BT",
+    "/F1 15 Tf 56 770 Td",
+    `(${esc(title)}) Tj`,
+    "/F1 10 Tf 0 -26 Td",
+    ...lines.map((l) => `(${esc(l)}) Tj 0 -15 Td`),
+    "ET",
+  ];
+  const stream = streamParts.join("\n");
+
+  let body = "%PDF-1.4\n";
+
+  const o1 = body.length;
+  body += "1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n";
+
+  const o2 = body.length;
+  body += "2 0 obj\n<</Type /Pages /Kids [3 0 R] /Count 1>>\nendobj\n";
+
+  const o3 = body.length;
+  body +=
+    "3 0 obj\n<</Type /Page /Parent 2 0 R /MediaBox [0 0 595 842]\n" +
+    "/Resources <</Font <</F1 5 0 R>>>> /Contents 4 0 R>>\nendobj\n";
+
+  const o4 = body.length;
+  body += `4 0 obj\n<</Length ${stream.length}>>\nstream\n${stream}\nendstream\nendobj\n`;
+
+  const o5 = body.length;
+  body +=
+    "5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Helvetica>>\nendobj\n";
+
+  const xrefPos = body.length;
+  const pad = (n) => String(n).padStart(10, "0");
+  body += "xref\n0 6\n";
+  body += `0000000000 65535 f\r\n`;
+  body += `${pad(o1)} 00000 n\r\n`;
+  body += `${pad(o2)} 00000 n\r\n`;
+  body += `${pad(o3)} 00000 n\r\n`;
+  body += `${pad(o4)} 00000 n\r\n`;
+  body += `${pad(o5)} 00000 n\r\n`;
+  body += `trailer\n<</Size 6 /Root 1 0 R>>\nstartxref\n${xrefPos}\n%%EOF\n`;
+
+  return body;
+}
+
+// ── Upload helper ─────────────────────────────────────────────────────────────
+
+async function upload(content, storagePath, contentType) {
+  const data = Buffer.from(content, typeof content === "string" ? "utf-8" : undefined);
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(storagePath, data, { contentType, upsert: true });
+  if (error) throw new Error(`Upload failed (${storagePath}): ${error.message}`);
+  return storagePath;
+}
+
+// ── Seed data ─────────────────────────────────────────────────────────────────
+
+async function seed() {
+  // Guard: skip if already seeded
+  if (!FORCE) {
+    const { data } = await supabase
+      .from("artifacts")
+      .select("id")
+      .limit(1);
+    if (data && data.length > 0) {
+      console.log(
+        "Artifacts already exist. Run with --force to wipe and re-seed."
+      );
+      return;
+    }
+  } else {
+    console.log("--force: clearing existing seed data...");
+    await supabase.from("feedback_summaries").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabase.from("feedback").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabase.from("share_links").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabase.from("artifacts").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  }
+
+  console.log("Uploading seed files...");
+
+  const ts = Date.now();
+
+  const htmlContent = readFileSync(
+    join(__dir, "seed-files/product-roadmap.html"),
+    "utf-8"
+  );
+  const svgContent = readFileSync(
+    join(__dir, "seed-files/brand-mockup.svg"),
+    "utf-8"
+  );
+  const pdfContent = buildPdf("API Integration Guide v2.1", [
+    "Version 2.1  |  Artifact Hub Platform  |  Generated by Claude",
+    "",
+    "AUTHENTICATION",
+    "All requests require an x-api-key header with your admin key.",
+    "Example:  curl -H 'x-api-key: your-key' https://example.com/api/mcp/artifacts",
+    "",
+    "ENDPOINTS",
+    "GET  /api/artifacts               List public artifacts (type, tags, limit, offset)",
+    "POST /api/artifacts               Publish a new artifact (base64 file upload)",
+    "GET  /api/artifacts/:id           Get artifact detail (public only)",
+    "GET  /api/artifacts/:id/feedback  List feedback (public only)",
+    "POST /api/artifacts/:id/feedback  Add feedback (any artifact)",
+    "POST /api/artifacts/:id/summarize Cache-first AI summary (Gemini 2.5 Flash)",
+    "POST /api/share                   Create expiring share link",
+    "GET  /api/share/:token            Validate token + get signed preview URL",
+    "",
+    "MCP ADAPTER ROUTES  (x-api-key required; bypass visibility)",
+    "GET  /api/mcp/artifacts           List all artifacts including unlisted",
+    "GET  /api/mcp/artifacts/:id       Full detail + feedback + signed URL",
+    "POST /api/mcp/artifacts           Publish artifact",
+    "POST /api/mcp/feedback            Add feedback",
+    "PATCH /api/mcp/feedback           Update feedback status (MCP-only)",
+    "POST /api/mcp/share               Create share link",
+    "POST /api/mcp/summarize           Summarize feedback",
+    "",
+    "ERROR REFERENCE",
+    "400  Bad Request       Invalid input parameters",
+    "401  Unauthorized      Missing or invalid x-api-key",
+    "403  Forbidden         Unlisted artifact; use share link or MCP key",
+    "404  Not Found         Artifact or resource does not exist",
+    "410  Gone              Share link has expired",
+    "422  Unprocessable     No feedback to summarize yet",
+    "502  Bad Gateway       Gemini returned unexpected or empty response",
+  ]);
+
+  const roadmapPath = await upload(
+    htmlContent, `${ts}-product-roadmap.html`, "text/html"
+  );
+  const brandPath = await upload(
+    svgContent, `${ts + 1}-brand-mockup.svg`, "image/svg+xml"
+  );
+  const apiGuidePath = await upload(
+    pdfContent, `${ts + 2}-api-guide.pdf`, "application/pdf"
+  );
+
+  console.log("Files uploaded. Inserting artifacts...");
+
+  const { data: artifacts, error: artifactErr } = await supabase
+    .from("artifacts")
+    .insert([
+      {
+        title: "Product Roadmap Q2 2026",
+        description:
+          "Q2 feature backlog and success criteria for the Artifact Hub platform, generated by Claude.",
+        tags: ["roadmap", "product", "q2-2026"],
+        type: "html",
+        mime_type: "text/html",
+        visibility: "public",
+        storage_path: roadmapPath,
+        original_filename: "product-roadmap.html",
+      },
+      {
+        title: "Artifact Hub Brand Identity",
+        description:
+          "Brand identity mockup including logo mark, color palette, and typography specimen.",
+        tags: ["brand", "design", "identity"],
+        type: "image",
+        mime_type: "image/svg+xml",
+        visibility: "public",
+        storage_path: brandPath,
+        original_filename: "brand-mockup.svg",
+      },
+      {
+        title: "API Integration Guide v2.1",
+        description:
+          "Developer documentation for the Artifact Hub API covering authentication, endpoints, and error handling.",
+        tags: ["api", "documentation", "engineering"],
+        type: "pdf",
+        mime_type: "application/pdf",
+        visibility: "public",
+        storage_path: apiGuidePath,
+        original_filename: "api-guide.pdf",
+      },
+    ])
+    .select("id, title");
+
+  if (artifactErr)
+    throw new Error(`Artifact insert failed: ${artifactErr.message}`);
+
+  const [roadmapId, brandId, apiGuideId] = artifacts.map((a) => a.id);
+
+  console.log("Inserting feedback...");
+
+  const { error: feedbackErr } = await supabase.from("feedback").insert([
+    // ── Product Roadmap (5 entries) ──────────────────────────────────────────
+    {
+      artifact_id: roadmapId,
+      reviewer_name: "Sarah Chen",
+      reviewer_role: "Product Manager",
+      feedback_type: "approval",
+      comment:
+        "Great structure. Priorities look right for Q2 — shipping MCP integration before dark mode is exactly the right call.",
+    },
+    {
+      artifact_id: roadmapId,
+      reviewer_name: "Marcus Lee",
+      reviewer_role: "Senior Engineer",
+      feedback_type: "suggestion",
+      comment:
+        "Add effort estimates next to each feature. Would help the team plan sprints without a separate conversation.",
+    },
+    {
+      artifact_id: roadmapId,
+      reviewer_name: "Priya Patel",
+      reviewer_role: "Design Lead",
+      feedback_type: "question",
+      comment:
+        "How does dark mode relate to the brand refresh? Can they proceed in parallel or are we waiting on the new palette?",
+    },
+    {
+      artifact_id: roadmapId,
+      reviewer_name: "Tom Wright",
+      reviewer_role: "Engineering Lead",
+      feedback_type: "issue",
+      comment:
+        "API versioning is missing from the roadmap. We agreed in the last planning session it was Q2 scope — needs to be added before this is published.",
+    },
+    {
+      artifact_id: roadmapId,
+      reviewer_name: "Jordan Kim",
+      reviewer_role: "Stakeholder",
+      feedback_type: "approval",
+      comment:
+        "Covers everything from the Q1 retro. The NL search deferral is the right call at this scale.",
+    },
+
+    // ── Brand Identity (5 entries) ───────────────────────────────────────────
+    {
+      artifact_id: brandId,
+      reviewer_name: "Alex Rivera",
+      reviewer_role: "Creative Director",
+      feedback_type: "approval",
+      comment:
+        "Color palette is exactly what we discussed. The indigo-on-dark treatment reads as modern without being gimmicky.",
+    },
+    {
+      artifact_id: brandId,
+      reviewer_name: "Morgan Taylor",
+      reviewer_role: "Marketing",
+      feedback_type: "suggestion",
+      comment:
+        "We need a version of the logo mark on a white background — print and partner co-branding materials will require it.",
+    },
+    {
+      artifact_id: brandId,
+      reviewer_name: "Sam Chen",
+      reviewer_role: "Frontend Engineer",
+      feedback_type: "question",
+      comment:
+        "What are the exact HSL values for the primary color? The hex makes CSS interpolation awkward for gradient and focus-ring tokens.",
+    },
+    {
+      artifact_id: brandId,
+      reviewer_name: "Jamie Park",
+      reviewer_role: "Accessibility Lead",
+      feedback_type: "issue",
+      comment:
+        "Secondary text (#606070 on #0f0f0f) fails WCAG AA for body copy at 11px — contrast is 3.8:1, needs to be ≥4.5:1. Suggest lightening to #8a8a9a.",
+    },
+    {
+      artifact_id: brandId,
+      reviewer_name: "Riley Johnson",
+      reviewer_role: "Product Designer",
+      feedback_type: "suggestion",
+      comment:
+        "Spacing between the tagline and color swatches feels compressed. Should be 40px to match the grid spec, not 24px as shown.",
+    },
+
+    // ── API Guide (5 entries) ────────────────────────────────────────────────
+    {
+      artifact_id: apiGuideId,
+      reviewer_name: "Chris Liu",
+      reviewer_role: "Backend Engineer",
+      feedback_type: "approval",
+      comment:
+        "Clear and well-structured. The code examples use real curl requests — exactly what external developers need rather than pseudocode.",
+    },
+    {
+      artifact_id: apiGuideId,
+      reviewer_name: "Dana Martinez",
+      reviewer_role: "Developer Relations",
+      feedback_type: "issue",
+      comment:
+        "The authentication section shows the Bearer token format from v1. We switched to x-api-key headers in v2.1 — this needs correction before external distribution.",
+    },
+    {
+      artifact_id: apiGuideId,
+      reviewer_name: "Taylor Kim",
+      reviewer_role: "Partner Engineer",
+      feedback_type: "question",
+      comment:
+        "Does this cover the webhook events added in the February release? CREATE_ARTIFACT and FEEDBACK_ADDED are missing from the events table.",
+    },
+    {
+      artifact_id: apiGuideId,
+      reviewer_name: "Jordan Walsh",
+      reviewer_role: "Technical Writer",
+      feedback_type: "suggestion",
+      comment:
+        "Add a Quick Start section at the top. The current doc assumes v1 familiarity — new developers have no clear entry point.",
+    },
+    {
+      artifact_id: apiGuideId,
+      reviewer_name: "Sam Park",
+      reviewer_role: "CTO",
+      feedback_type: "approval",
+      comment:
+        "The error code reference table is the best part — finally a definitive list. Well done.",
+    },
+  ]);
+
+  if (feedbackErr)
+    throw new Error(`Feedback insert failed: ${feedbackErr.message}`);
+
+  console.log("\n✓ Seed complete.");
+  console.log("  3 artifacts uploaded and inserted:");
+  for (const a of artifacts) console.log(`    ${a.title}  (${a.id})`);
+  console.log("  15 feedback entries inserted (5 per artifact).");
+  console.log("\nOpen http://localhost:3000 and click any artifact to test summarization.");
+}
+
+seed().catch((err) => {
+  console.error("Seed failed:", err.message);
+  process.exit(1);
+});

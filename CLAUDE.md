@@ -27,9 +27,12 @@ cd mcp && npm run build   # compile TypeScript
 cd mcp && npm run start   # run stdio server (for testing outside Claude Desktop)
 
 # Database
-npx supabase db push
+npx supabase db push             # push schema migrations
+npm run seed                     # upload seed files + insert 3 artifacts + 15 feedback entries
+npm run seed -- --force          # wipe existing data and re-seed
+
 # DESTRUCTIVE — only run after explicit confirmation:
-npx supabase db reset --linked   # wipes hosted project and re-seeds
+npx supabase db reset --linked   # wipes hosted DB schema; follow with npm run seed
 ```
 
 ## Architecture
