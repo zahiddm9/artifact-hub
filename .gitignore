@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+mcp/node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Vercel
+.vercel
+
+# env files — NEVER commit secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Supabase local dev
+supabase/.temp/
+
+# misc
+.DS_Store
+*.log
+npm-debug.log*
