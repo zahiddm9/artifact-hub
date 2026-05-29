@@ -5,6 +5,7 @@ import { registerShareTools } from "./tools/share.js";
 import { registerSummarizeTools } from "./tools/summarize.js";
 import { registerPublishTools } from "./tools/publish.js";
 import { registerFeedbackTools } from "./tools/feedback.js";
+import { registerManageTools } from "./tools/manage.js";
 
 // Warn on stderr (not stdout — stdio transport owns stdout) if required env vars are absent
 if (!process.env.ARTIFACT_HUB_ADMIN_KEY) {
@@ -28,6 +29,7 @@ registerShareTools(server);
 registerSummarizeTools(server);
 registerPublishTools(server);
 registerFeedbackTools(server);
+registerManageTools(server);
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
