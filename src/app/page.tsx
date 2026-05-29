@@ -29,7 +29,7 @@ export default async function GalleryPage({ searchParams }: Props) {
           </Link>
           <Link
             href="/publish"
-            className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
+            className="inline-flex items-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-violet-700"
           >
             Publish
           </Link>
@@ -53,7 +53,7 @@ export default async function GalleryPage({ searchParams }: Props) {
             <p className="text-zinc-500">No artifacts found.</p>
             <Link
               href="/publish"
-              className="mt-4 inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-zinc-700"
+              className="mt-4 inline-flex items-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-violet-700"
             >
               Publish the first one
             </Link>
