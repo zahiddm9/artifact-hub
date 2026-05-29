@@ -1,4 +1,5 @@
 import type { Feedback, FeedbackType, FeedbackStatus } from "@/types";
+import { DeleteFeedbackButton } from "./DeleteFeedbackButton";
 
 const TYPE_CONFIG: Record<FeedbackType, { label: string; className: string }> = {
   approval:   { label: "Approval",   className: "bg-green-50  text-green-700  ring-green-600/20"  },
@@ -13,7 +14,7 @@ const STATUS_CONFIG: Record<FeedbackStatus, { label: string; className: string }
   needs_review: { label: "Needs review", className: "bg-amber-100 text-amber-700" },
 };
 
-export function FeedbackList({ feedback }: { feedback: Feedback[] }) {
+export function FeedbackList({ feedback, isOwnerView = false }: { feedback: Feedback[]; isOwnerView?: boolean }) {
   if (feedback.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
@@ -58,6 +59,7 @@ export function FeedbackList({ feedback }: { feedback: Feedback[] }) {
                     day: "numeric",
                   })}
                 </span>
+                {isOwnerView && <DeleteFeedbackButton feedbackId={item.id} />}
               </div>
             </div>
             <p className="text-sm text-foreground leading-relaxed">{item.comment}</p>

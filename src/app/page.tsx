@@ -71,7 +71,7 @@ export default async function GalleryPage({ searchParams }: Props) {
               </Link>
             </div>
           </div>
-          <p className="text-muted-foreground">Browse, review, and share AI-generated content</p>
+          <p className="text-muted-foreground">Browse, review, and share content</p>
         </div>
 
         {isOwnerView && (

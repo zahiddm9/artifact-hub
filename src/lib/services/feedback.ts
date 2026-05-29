@@ -1,6 +1,16 @@
 import { createAdminClient } from "@/lib/supabase";
 import type { Feedback, FeedbackStatus, CreateFeedbackBody, ServiceResult } from "@/types";
 
+export async function deleteFeedback(id: string): Promise<ServiceResult<void>> {
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("feedback").delete().eq("id", id);
+  if (error) {
+    if (error.code === "PGRST116") return { ok: false, status: 404, message: "Feedback not found" };
+    return { ok: false, status: 500, message: error.message };
+  }
+  return { ok: true, data: undefined };
+}
+
 export async function listFeedback(artifactId: string): Promise<ServiceResult<Feedback[]>> {
   const supabase = createAdminClient();
   const { data, error } = await supabase

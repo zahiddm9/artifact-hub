@@ -116,7 +116,7 @@ export default async function ArtifactDetailPage({ params, searchParams }: Props
           <h2 className="font-semibold text-foreground">
             Feedback{feedback.length > 0 ? ` (${feedback.length})` : ""}
           </h2>
-          <FeedbackList feedback={feedback} />
+          <FeedbackList feedback={feedback} isOwnerView={isOwnerView} />
           <FeedbackForm artifactId={artifact.id} />
         </section>
 
