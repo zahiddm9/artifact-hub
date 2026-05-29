@@ -83,7 +83,8 @@ export function GalleryFilter({ artifacts }: Props) {
 
   function clearAll() {
     setTagInput("");
-    router.push(pathname);
+    const currentView = searchParams.get("view");
+    router.push(currentView ? `${pathname}?view=${currentView}` : pathname);
   }
 
   return (
