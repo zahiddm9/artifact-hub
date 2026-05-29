@@ -89,7 +89,9 @@ export default async function ArtifactDetailPage({ params, searchParams }: Props
               </div>
             )}
           </div>
-          <ShareButton artifactId={artifact.id} visibility={artifact.visibility} />
+          {artifact.visibility === "unlisted" && (
+            <ShareButton artifactId={artifact.id} visibility="unlisted" />
+          )}
         </div>
 
         {/* Publisher Demo actions */}
