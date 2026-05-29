@@ -5,6 +5,7 @@ import { useState } from "react";
 export function ShareButton({ artifactId }: { artifactId: string }) {
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [shareUrl, setShareUrl] = useState("");
+  const [copied, setCopied] = useState(false);
 
   async function handleShare() {
     setState("loading");
@@ -29,6 +30,13 @@ export function ShareButton({ artifactId }: { artifactId: string }) {
     }
   }
 
+  function handleCopy() {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  }
+
   if (state === "done") {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 min-w-0 max-w-sm">
@@ -40,10 +48,12 @@ export function ShareButton({ artifactId }: { artifactId: string }) {
           onClick={(e) => (e.target as HTMLInputElement).select()}
         />
         <button
-          onClick={() => navigator.clipboard.writeText(shareUrl)}
-          className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          onClick={handleCopy}
+          className={`shrink-0 text-xs transition-colors cursor-pointer ${
+            copied ? "text-green-600" : "text-muted-foreground hover:text-foreground"
+          }`}
         >
-          Copy
+          {copied ? "Copied!" : "Copy"}
         </button>
       </div>
     );
@@ -53,7 +63,7 @@ export function ShareButton({ artifactId }: { artifactId: string }) {
     <button
       onClick={handleShare}
       disabled={state === "loading"}
-      className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+      className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50 cursor-pointer"
     >
       {state === "loading" ? "Creating…" : state === "error" ? "Retry" : "Share"}
     </button>
