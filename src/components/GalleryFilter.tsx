@@ -62,7 +62,7 @@ export function GalleryFilter({ artifacts }: Props) {
     const q = tagInput.trim().toLowerCase();
     if (!q) return artifacts;
     return artifacts.filter((a) =>
-      a.tags.some((t) => t.toLowerCase().includes(q))
+      a.tags.some((t) => t.toLowerCase().startsWith(q))
     );
   }, [artifacts, tagInput]);
 
