@@ -43,6 +43,17 @@ Phase 4 — MCP Core Slice
 * Prompt version stored as "v1"; model name stored per summary row for transparency
 * `npm run build` clean — 11 routes registered
 
+### Pre-Phase-4 hardening (complete)
+
+TypeScript reviewer findings addressed before MCP integration:
+* **Gemini JSON validation** — `getCachedSummary` now propagates real DB errors (only returns null on PGRST116); `getSummary` distinguishes artifact 404 vs 500; `response.text` checked for empty before `JSON.parse`; parsed result validated with `isValidSummaryData` guard before storing
+* **Enum input validation** — `POST /api/artifacts` validates `type` and `visibility` against allowed enum values, validates `tags` shape, builds typed `CreateArtifactBody` (no more `as any`); `POST /api/artifacts/[id]/feedback` validates `feedback_type` enum and builds typed `CreateFeedbackBody`
+* **Pagination guard** — `GET /api/artifacts` returns 400 on non-integer or negative `limit`/`offset` (was passing NaN to Supabase)
+* **`storage_path` stripped** — removed from all public API responses: `GET/POST /api/artifacts`, `GET /api/artifacts/[id]`, `GET /api/share/[token]`; `ArtifactPublic = Omit<Artifact, "storage_path">` added to types
+* **`createShareLink` existence check** — service now verifies artifact exists before insert; bad `artifact_id` returns clean 404 instead of raw FK constraint error
+* **Visibility on feedback GET** — `GET /api/artifacts/[id]/feedback` now checks visibility and returns 403 for unlisted artifacts (matching `/api/artifacts/[id]` policy); POST still allows feedback from share-link holders
+* Build clean — all 11 routes, TypeScript OK
+
 ## In progress
 
 * Phase 4 — MCP Core Slice (not started yet)

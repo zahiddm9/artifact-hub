@@ -1,19 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listArtifacts, createArtifact } from "@/lib/services/artifacts";
 import { createShareLink } from "@/lib/services/share";
-import type { ArtifactType } from "@/types";
+import type { ArtifactType, ArtifactVisibility, CreateArtifactBody } from "@/types";
+
+const VALID_TYPES: ArtifactType[] = ["pdf", "image", "html"];
+const VALID_VISIBILITIES: ArtifactVisibility[] = ["public", "unlisted"];
+
+function parsePagination(
+  raw: string | null,
+  defaultValue: number,
+  max?: number
+): number | null {
+  if (raw === null) return defaultValue;
+  const n = parseInt(raw, 10);
+  if (isNaN(n) || n < 0) return null;
+  return max !== undefined ? Math.min(n, max) : n;
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const type = (searchParams.get("type") as ArtifactType) || undefined;
+
+  const rawType = searchParams.get("type");
+  if (rawType && !VALID_TYPES.includes(rawType as ArtifactType)) {
+    return NextResponse.json(
+      { error: `Invalid type. Must be one of: ${VALID_TYPES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+  const type = (rawType as ArtifactType) || undefined;
+
   const tagParam = searchParams.get("tags");
   const tags = tagParam ? tagParam.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
-  const limit = Math.min(parseInt(searchParams.get("limit") ?? "50"), 100);
-  const offset = parseInt(searchParams.get("offset") ?? "0");
+
+  const limit = parsePagination(searchParams.get("limit"), 50, 100);
+  const offset = parsePagination(searchParams.get("offset"), 0);
+  if (limit === null || offset === null) {
+    return NextResponse.json({ error: "limit and offset must be non-negative integers" }, { status: 400 });
+  }
 
   const result = await listArtifacts({ type, tags, visibility: "public", limit, offset });
   if (!result.ok) return NextResponse.json({ error: result.message }, { status: result.status });
-  return NextResponse.json(result.data);
+
+  // Strip storage_path from every artifact before returning
+  return NextResponse.json(result.data.map(({ storage_path: _, ...a }) => a));
 }
 
 export async function POST(request: NextRequest) {
@@ -25,27 +54,65 @@ export async function POST(request: NextRequest) {
   }
 
   const b = body as Record<string, unknown>;
-  if (!b.title || !b.type || !b.mime_type || !b.file_base64 || !b.filename) {
-    return NextResponse.json({ error: "Missing required fields: title, type, mime_type, file_base64, filename" }, { status: 400 });
+
+  // Required fields — presence + type check
+  if (typeof b.title !== "string" || !b.title.trim()) {
+    return NextResponse.json({ error: "title must be a non-empty string" }, { status: 400 });
+  }
+  if (!VALID_TYPES.includes(b.type as ArtifactType)) {
+    return NextResponse.json(
+      { error: `type must be one of: ${VALID_TYPES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+  if (typeof b.mime_type !== "string" || !b.mime_type) {
+    return NextResponse.json({ error: "mime_type must be a non-empty string" }, { status: 400 });
+  }
+  if (typeof b.file_base64 !== "string" || !b.file_base64) {
+    return NextResponse.json({ error: "file_base64 must be a non-empty string" }, { status: 400 });
+  }
+  if (typeof b.filename !== "string" || !b.filename) {
+    return NextResponse.json({ error: "filename must be a non-empty string" }, { status: 400 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await createArtifact(b as any);
+  // Optional fields
+  if (b.visibility !== undefined && !VALID_VISIBILITIES.includes(b.visibility as ArtifactVisibility)) {
+    return NextResponse.json(
+      { error: `visibility must be one of: ${VALID_VISIBILITIES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+  if (b.tags !== undefined && (!Array.isArray(b.tags) || !(b.tags as unknown[]).every((t) => typeof t === "string"))) {
+    return NextResponse.json({ error: "tags must be an array of strings" }, { status: 400 });
+  }
+
+  const artifactBody: CreateArtifactBody = {
+    title: (b.title as string).trim(),
+    description: typeof b.description === "string" ? b.description : undefined,
+    tags: Array.isArray(b.tags) ? (b.tags as string[]) : undefined,
+    type: b.type as ArtifactType,
+    mime_type: b.mime_type as string,
+    visibility: b.visibility as ArtifactVisibility | undefined,
+    file_base64: b.file_base64 as string,
+    filename: b.filename as string,
+  };
+
+  const result = await createArtifact(artifactBody);
   if (!result.ok) return NextResponse.json({ error: result.message }, { status: result.status });
 
-  const artifact = result.data;
+  const { storage_path: _, ...publicArtifact } = result.data;
 
   // Auto-create 30-day share link for unlisted artifacts
-  if (artifact.visibility === "unlisted") {
+  if (result.data.visibility === "unlisted") {
     const shareResult = await createShareLink({
-      artifact_id: artifact.id,
+      artifact_id: result.data.id,
       expires_in_hours: 24 * 30,
       label: "Auto-generated on publish",
     });
     if (shareResult.ok) {
-      return NextResponse.json({ artifact, shareLink: shareResult.data }, { status: 201 });
+      return NextResponse.json({ artifact: publicArtifact, shareLink: shareResult.data }, { status: 201 });
     }
   }
 
-  return NextResponse.json({ artifact }, { status: 201 });
+  return NextResponse.json({ artifact: publicArtifact }, { status: 201 });
 }

@@ -14,5 +14,6 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  return NextResponse.json(result.data);
+  const { storage_path: _, ...publicArtifact } = result.data;
+  return NextResponse.json(publicArtifact);
 }

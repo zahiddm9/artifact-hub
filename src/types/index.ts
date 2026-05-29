@@ -92,6 +92,9 @@ export interface SummarizeBody {
   force_refresh?: boolean;
 }
 
+// Artifact shape safe to expose in API responses (storage_path is internal-only)
+export type ArtifactPublic = Omit<Artifact, "storage_path">;
+
 // Utility type for service-layer results
 
 export type ServiceResult<T> =

@@ -25,15 +25,36 @@ Return a JSON object with exactly these fields:
 - approval_count: integer count of approvals (feedback_type=approval)`;
 }
 
+function isValidSummaryData(data: unknown): data is FeedbackSummaryData {
+  if (!data || typeof data !== "object") return false;
+  const d = data as Record<string, unknown>;
+  return (
+    typeof d.overall_assessment === "string" &&
+    Array.isArray(d.open_issues) &&
+    (d.open_issues as unknown[]).every((x) => typeof x === "string") &&
+    Array.isArray(d.suggestions) &&
+    (d.suggestions as unknown[]).every((x) => typeof x === "string") &&
+    Array.isArray(d.questions) &&
+    (d.questions as unknown[]).every((x) => typeof x === "string") &&
+    typeof d.approval_count === "number"
+  );
+}
+
 // Returns the cached summary without calling Gemini.
+// Returns null only when no row exists (PGRST116); propagates real DB errors.
 export async function getCachedSummary(artifactId: string): Promise<FeedbackSummary | null> {
   const supabase = createAdminClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("feedback_summaries")
     .select("*")
     .eq("artifact_id", artifactId)
     .single();
-  return data ? (data as FeedbackSummary) : null;
+
+  if (error) {
+    if (error.code === "PGRST116") return null; // no row — expected
+    throw new Error(`getCachedSummary DB error: ${error.message}`);
+  }
+  return data as FeedbackSummary;
 }
 
 // Cache-first: returns cached if feedback_count unchanged and !forceRefresh.
@@ -49,7 +70,10 @@ export async function getSummary(
     .select("*")
     .eq("id", artifactId)
     .single();
-  if (artifactErr) return { ok: false, status: 404, message: "Artifact not found" };
+  if (artifactErr) {
+    if (artifactErr.code === "PGRST116") return { ok: false, status: 404, message: "Artifact not found" };
+    return { ok: false, status: 500, message: artifactErr.message };
+  }
 
   const { data: feedbackRows, error: feedbackErr } = await supabase
     .from("feedback")
@@ -91,8 +115,28 @@ export async function getSummary(
       contents: prompt,
       config: { responseMimeType: "application/json" },
     });
-    const text = response.text ?? "";
-    summaryData = JSON.parse(text) as FeedbackSummaryData;
+
+    const text = response.text;
+    if (!text) {
+      return { ok: false, status: 502, message: "Gemini returned an empty response" };
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return { ok: false, status: 502, message: "Gemini response was not valid JSON" };
+    }
+
+    if (!isValidSummaryData(parsed)) {
+      return {
+        ok: false,
+        status: 502,
+        message: "Gemini response missing required fields (overall_assessment, open_issues, suggestions, questions, approval_count)",
+      };
+    }
+
+    summaryData = parsed;
   } catch (err) {
     return {
       ok: false,
