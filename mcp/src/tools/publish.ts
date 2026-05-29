@@ -11,6 +11,7 @@ interface PublishResponse {
     visibility: string;
   };
   shareLink?: { token: string; expires_at: string };
+  shareError?: string;
 }
 
 export function registerPublishTools(server: McpServer): void {
