@@ -22,15 +22,15 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") return DEFAULT_THEME;
+    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
+    return stored && isValidTheme(stored) ? stored : DEFAULT_THEME;
+  });
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    if (stored && isValidTheme(stored)) {
-      applyTheme(stored);
-      setThemeState(stored);
-    }
-  }, []);
+    applyTheme(theme);
+  }, [theme]);
 
   function setTheme(next: Theme) {
     localStorage.setItem(STORAGE_KEY, next);

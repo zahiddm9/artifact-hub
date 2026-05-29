@@ -47,7 +47,7 @@ export default async function SharePage({ params }: Props) {
 
   const feedback = feedbackResult.ok ? feedbackResult.data : [];
   const expiresDate = new Date(expires_at);
-  const isExpiringSoon = (expiresDate.getTime() - Date.now()) / 3_600_000 < 24;
+  const isExpiringSoon = (expiresDate.getTime() - new Date().getTime()) / 3_600_000 < 24;
 
   return (
     <div className="min-h-screen bg-background">
