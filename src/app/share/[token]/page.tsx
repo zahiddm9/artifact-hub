@@ -18,19 +18,20 @@ export default async function SharePage({ params }: Props) {
   const result = await validateShareLink(token);
 
   if (!result.ok) {
+    const isExpired = result.status === 410;
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center max-w-sm">
+        <div className="text-center max-w-sm px-4">
           <h1 className="text-2xl font-bold text-foreground">
-            {result.status === 410 ? "Link expired" : "Link not found"}
+            {isExpired ? "This link has expired" : "Link not found"}
           </h1>
           <p className="mt-2 text-muted-foreground">
-            {result.status === 410
-              ? "This share link has expired and can no longer be used."
-              : "This share link is invalid or has been removed."}
+            {isExpired
+              ? "The share link you followed is no longer valid. Ask the sender to create a new link, or browse the public gallery."
+              : "This share link doesn't exist or has been removed. Check the URL and try again, or browse the public gallery."}
           </p>
           <Link href="/" className="mt-4 inline-block text-sm text-primary transition-colors hover:text-primary/80">
-            Browse gallery
+            Browse gallery →
           </Link>
         </div>
       </div>
@@ -77,6 +78,10 @@ export default async function SharePage({ params }: Props) {
               ))}
             </div>
           )}
+          <p className="mt-2 text-xs text-muted-foreground">
+            Access link · expires{" "}
+            {expiresDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          </p>
         </div>
 
         {/* Preview */}
