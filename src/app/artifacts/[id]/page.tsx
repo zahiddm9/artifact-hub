@@ -6,6 +6,7 @@ import { getCachedSummary } from "@/lib/services/summarize";
 import { getPublicArtifactUrl } from "@/lib/storage";
 import { ArtifactPreview } from "@/components/ArtifactPreview";
 import { ShareButton } from "@/components/ShareButton";
+import { ArtifactActions } from "@/components/ArtifactActions";
 import { FeedbackList } from "@/components/FeedbackList";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { FeedbackSummary } from "@/components/FeedbackSummary";
@@ -13,10 +14,13 @@ import { Header } from "@/components/Header";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ view?: string }>;
 }
 
-export default async function ArtifactDetailPage({ params }: Props) {
+export default async function ArtifactDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { view } = await searchParams;
+  const isOwnerView = view === "owner";
   const result = await getArtifact(id);
 
   if (!result.ok) {
@@ -29,6 +33,7 @@ export default async function ArtifactDetailPage({ params }: Props) {
   }
 
   const artifact = result.data;
+  const { storage_path: _, ...publicArtifact } = artifact;
 
   if (artifact.visibility === "unlisted") {
     return (
@@ -86,6 +91,9 @@ export default async function ArtifactDetailPage({ params }: Props) {
           </div>
           <ShareButton artifactId={artifact.id} />
         </div>
+
+        {/* Owner actions */}
+        {isOwnerView && <ArtifactActions artifact={publicArtifact} />}
 
         {/* Preview */}
         {signedUrlResult ? (
