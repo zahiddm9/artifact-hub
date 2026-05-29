@@ -119,9 +119,95 @@ Manual steps remaining:
 5. Fill in live URL + demo admin key in WRITEUP.md
 6. Copy session logs to `claude-sessions/` folder (note: requirements.md says `sessions/` but the submission folder is `claude-sessions/`)
 
+### Phase 7 — Frontend Polish (in progress)
+
+Design direction audit completed. Plan saved to `docs/plans/2026-05-29-frontend-polish.md`.
+
+Five batches, no new libraries, no structural changes:
+- Batch 1 — Foundation: fix Arial font override in globals.css, add global focus-visible ring + button cursor
+- Batch 2 — Nav consistency: align header widths, hover/transition on logo and back link
+- Batch 3 — Interactive element polish: filter transitions, card micro-lift, ShareButton/FeedbackSummary cursor
+- Batch 4 — Mobile form fixes: `grid-cols-2` → `grid-cols-1 sm:grid-cols-2` on FeedbackForm + PublishForm
+- Batch 5 — Transition consistency pass: tag pills, any remaining untransitioned hovers
+
+Files involved: `src/app/globals.css`, `src/app/page.tsx`, `src/app/artifacts/[id]/page.tsx`, `src/app/publish/page.tsx`, `src/app/share/[token]/page.tsx`, `src/components/ArtifactCard.tsx`, `src/components/GalleryFilter.tsx`, `src/components/ShareButton.tsx`, `src/components/FeedbackForm.tsx`, `src/components/FeedbackSummary.tsx`, `src/components/PublishForm.tsx`.
+
+**Batch 1 — Complete** (commit `92f68bc`)
+- Removed `font-family: Arial` override — Geist Sans now loads correctly from `--font-geist-sans`
+- Added `cursor: pointer` globally for `button`, `[role="button"]`, `label[for]`, `summary`
+- Added `:focus-visible` outline system: 2px zinc-900 (#18181b), 4px radius, 2px offset
+
+**Batch 2 — Complete** (commit `f6a0922`)
+- All four page headers unified to `max-w-6xl` — logo stays at x=88px on every page (verified via Playwright bounding box)
+- Logo link: `transition-colors duration-150 hover:text-zinc-600` on all pages
+- "← Gallery" / "← Back" links: `transition-colors duration-150` on publish and detail pages
+- Playwright verification: widths match ✓, logo x-positions match ✓, hover colors change ✓, focus ring 2px ✓
+
+**Batch 3 — Complete** (commit `1a009c3`)
+- ArtifactCard: `hover:-translate-y-0.5 duration-150` — card lifts 2px on hover (verified: `translate` idle=`none` → hover=`0px -2px`)
+- GalleryFilter type buttons: `transition-colors duration-150` — active state flip is now animated; Clear link same
+- ShareButton copy button: `transition-colors duration-150`
+- FeedbackSummary both buttons: `transition-colors duration-150`
+- Note: `cursor:pointer` on all buttons already provided by global CSS rule from Batch 1; Tailwind v4 uses standalone `translate` CSS property not `transform`
+
+**Batch 4 — Complete** (commit `db70c36`)
+- FeedbackForm: `grid-cols-2` → `grid-cols-1 sm:grid-cols-2` on name/role row
+- Verified via Playwright: 375px → single 375px-wide column; 768px → two 378px columns
+- PublishForm: no grid-cols-2 bug existed — audit note was incorrect, no change needed
+
+**Batch 5 — Complete** (commit `7520c62`)
+- artifacts/[id]/page.tsx: tag pills + unlisted back link
+- FeedbackForm: "Add another" success button
+- page.tsx: empty state "Publish the first one" button
+- PublishForm: copy button, View artifact link, Back to gallery link, Publish another button, file input file-button (`file:transition-colors file:duration-150`)
+- Final grep: zero remaining `hover:` classes without a matching `transition` across all components and pages
+- All transitions confirmed at 150ms via Playwright CSS evaluation
+
+### Phase 7 — Frontend Polish complete
+
+All 5 batches committed. Manual smoke test checklist from plan:
+- [ ] Typography: Geist Sans renders (not Arial)
+- [ ] Focus rings: visible zinc-900 ring on all nav/button/link elements via Tab
+- [ ] Cursor: pointer on all buttons across all pages
+- [ ] Card lift: hover shows -2px translate with smooth 150ms transition
+- [ ] Filter transitions: type button active/inactive flip is animated
+- [ ] Mobile 375px: FeedbackForm name/role fields stack vertically
+- [ ] Nav width: stays consistent across gallery → detail → publish
+- [ ] Logo hover: zinc-900 → zinc-600 fade
+- [ ] Tag pills: bg-zinc-100 → bg-zinc-200 fade on hover
+- [ ] Build: `npm run build` passes with 17 routes, no TS errors ✓
+
+### Phase 8 — Violet Accent + Filter Loading (in progress)
+
+Design direction: Direction 1 (Violet). Single accent `#7c3aed` (violet-600) applied to all primary interactive elements. Zinc structure, backgrounds, borders, text, and semantic badges untouched.
+
+Plan: `docs/plans/2026-05-29-violet-accent.md`
+
+Tasks:
+1. `globals.css` — `:focus-visible` outline → violet-600
+2. `src/app/page.tsx` — Publish nav button + empty state CTA → violet
+3. `src/components/GalleryFilter.tsx` — active tab → violet, input ring → violet, `useTransition` spinner
+4. `src/components/FeedbackSummary.tsx` — Summarize button → violet
+5. `src/components/FeedbackForm.tsx` — submit + inputs + radio accent → violet
+6. `src/components/PublishForm.tsx` — submit + View artifact + file button + inputs + radio → violet
+7. Final build + lint + Playwright verify + TRACKER update
+
+**Complete** — 7 commits:
+- `db1a6a7` globals.css: `:focus-visible` outline → violet (#7c3aed initially)
+- `df37261` page.tsx: Publish nav button + empty state CTA → violet-600
+- `bfa0b61` GalleryFilter: active tab → violet, focus ring → violet, `useTransition` spinner
+- `035c0ee` FeedbackSummary: Summarize button → violet
+- `ed31cdb` FeedbackForm: submit + inputs + radio accent → violet
+- `beda1ba` PublishForm: submit + View artifact + file button + inputs + radio → violet
+- `c3d2b39` Fix focus-visible to exact Tailwind v4 violet-600 value (#7f22fe)
+
+Verification: compiled CSS confirms all violet classes present — `bg-violet-600`, `hover:bg-violet-700`, `accent-violet-600`, `file:bg-violet-600`, `focus:ring-violet-600`, `animate-spin`, `:focus-visible #7f22fe`. Build clean, lint warnings pre-existing (not in modified files).
+
+Unchanged as planned: all zinc structural classes, semantic badges (red/green/blue/amber), secondary outlined buttons, text colors, borders, backgrounds.
+
 ## In progress
 
-* Manual deployment and verification
+* Manual deployment and verification (Phase 6, pending Vercel)
 
 ## Blockers and decisions
 
