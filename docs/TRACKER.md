@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Phase 4 — MCP Core Slice
+Phase 5 — MCP Extended
 
 ## Done
 
@@ -54,9 +54,29 @@ TypeScript reviewer findings addressed before MCP integration:
 * **Visibility on feedback GET** — `GET /api/artifacts/[id]/feedback` now checks visibility and returns 403 for unlisted artifacts (matching `/api/artifacts/[id]` policy); POST still allows feedback from share-link holders
 * Build clean — all 11 routes, TypeScript OK
 
+### Phase 4 — MCP Core Slice (complete)
+
+API MCP routes (all require `x-api-key`, call same services as web routes, no visibility restriction):
+* `GET /api/mcp/artifacts` — list with optional type/tags/visibility/limit/offset filters
+* `GET /api/mcp/artifacts/[id]` — full detail: artifact + feedback list + 1-hour signed URL
+* `POST /api/mcp/share` — create share link (delegates to createShareLink service)
+* `POST /api/mcp/summarize` — cache-first summarize with artifact_id + force_refresh in body
+
+MCP server (`mcp/` package — Node.js stdio, ESM):
+* `mcp/src/client.ts` — HTTP helper reads `ARTIFACT_HUB_ADMIN_KEY` + `ARTIFACT_HUB_BASE_URL`
+* `mcp/src/tools/artifacts.ts` — `list_artifacts`, `get_artifact` (human-readable text output)
+* `mcp/src/tools/share.ts` — `create_share_link`
+* `mcp/src/tools/summarize.ts` — `summarize_feedback`
+* `mcp/src/index.ts` — McpServer + StdioServerTransport entry point
+* `mcp/tsconfig.json` — node16 module resolution, compiles to `mcp/dist/`
+* `ARTIFACT_HUB_BASE_URL` added to `.env.example`
+* `mcp/dist/` added to `.gitignore`
+* Web `npm run build` clean — 15 routes (4 new MCP routes registered)
+* `cd mcp && npm run build` clean — 6 JS files compiled, TypeScript OK
+
 ## In progress
 
-* Phase 4 — MCP Core Slice (not started yet)
+* Phase 5 — MCP Extended (not started yet)
 
 ## Blockers and decisions
 
