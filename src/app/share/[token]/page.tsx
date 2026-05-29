@@ -51,8 +51,8 @@ export default async function SharePage({ params }: Props) {
   return (
     <div className="min-h-screen bg-zinc-50">
       <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur">
-        <div className="mx-auto max-w-4xl flex items-center justify-between px-6 py-4">
-          <Link href="/" className="text-lg font-bold text-zinc-900">
+        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 py-4">
+          <Link href="/" className="text-lg font-bold text-zinc-900 transition-colors duration-150 hover:text-zinc-600">
             Artifact Hub
           </Link>
           <span className="text-sm text-zinc-400">Shared artifact</span>

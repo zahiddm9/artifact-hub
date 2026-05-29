@@ -5,11 +5,11 @@ export default function PublishPage() {
   return (
     <div className="min-h-screen bg-zinc-50">
       <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur">
-        <div className="mx-auto max-w-2xl flex items-center justify-between px-6 py-4">
-          <Link href="/" className="text-lg font-bold text-zinc-900">
+        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 py-4">
+          <Link href="/" className="text-lg font-bold text-zinc-900 transition-colors duration-150 hover:text-zinc-600">
             Artifact Hub
           </Link>
-          <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-900">
+          <Link href="/" className="text-sm text-zinc-500 transition-colors duration-150 hover:text-zinc-900">
             ← Gallery
           </Link>
         </div>
