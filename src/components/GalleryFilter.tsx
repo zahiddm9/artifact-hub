@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Layers, FileText, Image, Code } from "lucide-react";
 import { ArtifactCard } from "./ArtifactCard";
+import { DeleteCardButton } from "./DeleteCardButton";
 import type { Artifact, ArtifactType } from "@/types";
 
 /*
@@ -177,10 +178,11 @@ export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
           {filteredArtifacts.map((artifact, index) => (
             <div
               key={artifact.id}
-              className="animate-fade-in-up"
+              className="relative animate-fade-in-up"
               style={{ animationDelay: `${index * 50}ms` }}
             >
               <ArtifactCard artifact={artifact} isOwnerView={isOwnerView} />
+              {isOwnerView && <DeleteCardButton artifactId={artifact.id} />}
             </div>
           ))}
         </div>
