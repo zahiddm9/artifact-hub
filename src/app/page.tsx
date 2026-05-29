@@ -81,7 +81,7 @@ export default async function GalleryPage({ searchParams }: Props) {
         )}
 
         <Suspense fallback={null}>
-          <GalleryFilter artifacts={result.data} />
+          <GalleryFilter artifacts={result.data} isOwnerView={isOwnerView} />
         </Suspense>
       </main>
     </div>

@@ -42,9 +42,10 @@ const TYPES: { value: ArtifactType | ""; label: string; icon: typeof Layers }[] 
 
 interface Props {
   artifacts: Artifact[];
+  isOwnerView?: boolean;
 }
 
-export function GalleryFilter({ artifacts }: Props) {
+export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -179,7 +180,7 @@ export function GalleryFilter({ artifacts }: Props) {
               className="animate-fade-in-up"
               style={{ animationDelay: `${index * 50}ms` }}
             >
-              <ArtifactCard artifact={artifact} />
+              <ArtifactCard artifact={artifact} isOwnerView={isOwnerView} />
             </div>
           ))}
         </div>

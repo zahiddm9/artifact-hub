@@ -8,13 +8,13 @@ const TYPE_CONFIG: Record<string, { icon: typeof FileText; label: string; cls: s
   html:  { icon: Code,     label: "HTML",  cls: "bg-violet-500/20 text-violet-400 border-violet-500/30" },
 };
 
-export function ArtifactCard({ artifact }: { artifact: Artifact }) {
+export function ArtifactCard({ artifact, isOwnerView = false }: { artifact: Artifact; isOwnerView?: boolean }) {
   const config = TYPE_CONFIG[artifact.type] ?? { icon: FileText, label: artifact.type.toUpperCase(), cls: "bg-secondary text-muted-foreground border-border" };
   const { icon: TypeIcon, label, cls } = config;
 
   return (
     <Link
-      href={`/artifacts/${artifact.id}`}
+      href={`/artifacts/${artifact.id}${isOwnerView ? "?view=owner" : ""}`}
       className="group relative flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-300 ease-out hover:border-primary/30 hover:bg-card/80 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 card-glow"
     >
       {/* Title + badges */}
