@@ -84,47 +84,28 @@
 - Claude Desktop open with `artifact-hub` visible in the MCP connections list.
 - Start a fresh conversation.
 
-### Copy-paste prompts — run these in order
+### One prompt — copy and paste this exactly
 
-**Prompt 1**
 ```
-List all the artifacts in the Artifact Hub.
+List all the artifacts in the hub, then pull up the full details and feedback for the product roadmap, summarize the feedback, mark Tom Wright's API versioning issue as resolved, and regenerate the summary to reflect that change.
 ```
-_Claude calls `list_artifacts`. Shows 3 artifacts with IDs, types, tags, and a suggested next step._
 
-**Prompt 2**
-```
-Show me the full details and feedback for the product roadmap.
-```
-_Claude calls `get_artifact` using the roadmap ID from the previous response. Shows 5 feedback items — notice Tom Wright's open issue about API versioning. Claude suggests `summarize_feedback` at the end._
+_Claude will chain all five tools in sequence: `list_artifacts` → `get_artifact` → `summarize_feedback` → `update_feedback_status` → `summarize_feedback(force_refresh=true)`. Watch each tool call appear as Claude works through the request._
 
-**Prompt 3**
-```
-Summarize the feedback.
-```
-_Claude calls `summarize_feedback`. Gemini returns the digest: 2 approvals, 1 open issue (API versioning), 2 suggestions, 1 question._
-
-**Prompt 4**
-```
-Mark Tom Wright's API versioning issue as resolved.
-```
-_Claude calls `update_feedback_status`. Response ends with: "Issue marked resolved. Call `summarize_feedback` with `force_refresh=true` to update the digest." — the tool guided the next step._
-
-**Prompt 5**
-```
-Regenerate the summary now that the issue is resolved.
-```
-_Claude calls `summarize_feedback(force_refresh=true)`. The digest updates — open issues drops to 0, approvals still 2._
+**What each tool call shows:**
+- `list_artifacts` — all 3 artifacts with IDs, types, tags
+- `get_artifact` — full roadmap detail: 5 feedback items including Tom Wright's open issue
+- `summarize_feedback` — Gemini digest: 2 approvals, 1 open issue, 2 suggestions, 1 question
+- `update_feedback_status` — issue marked resolved; tool suggests regenerating the summary
+- `summarize_feedback(force_refresh)` — digest updates: open issues drops to 0
 
 ### What to say
 
-> _(showing MCP sidebar)_ "The MCP server is a standalone Node.js stdio process. The reviewer adds it to Claude Desktop config with the admin key and the deployed URL. From there, the entire artifact lifecycle is available conversationally."
+> _(before pasting)_ "The MCP server is a standalone Node.js process the reviewer adds to Claude Desktop with the admin key and the deployed URL. One conversation can drive the entire artifact lifecycle."
 
-> _(after Prompt 2, pointing at the next-step hint)_ "Every tool response ends with a contextual next step. This is the design distinction — it's a workflow tool, not a set of API wrappers. The server guides the conversation forward."
+> _(while Claude is running the tools)_ "Watch the tools chain — each one calls back to the deployed Vercel API. Every response ends with a contextual next step, which is what lets one prompt drive five tool calls in sequence."
 
-> _(after Prompt 4, pointing at the resolve hint)_ "When you mark an issue resolved, the tool tells you to regenerate the summary. When you add feedback, it tells you to get the full thread or run a digest. The tools chain naturally."
-
-> _(after Prompt 5)_ "One conversation went from browsing to reviewing to resolving an issue to updating the AI digest. That's the full review lifecycle without leaving the chat."
+> _(after the final summary appears)_ "That's the full review lifecycle in one conversation — browsing, reviewing, resolving an issue, and updating the AI digest — without leaving the chat."
 
 ### 💡 Highlight — impress the reviewer
 - **9 tools, full lifecycle:** list, get, publish, add feedback, update status, share, summarize, delete, update metadata.
@@ -133,30 +114,34 @@ _Claude calls `summarize_feedback(force_refresh=true)`. The digest updates — o
 
 ---
 
-## Segment 4 — Architecture & Supabase (3:45 – 4:30)
+## Segment 4 — Vercel + Supabase (3:45 – 4:30)
 
 ### On screen
-**In the Supabase dashboard (`supabase.com/dashboard`):**
-1. Click **Table Editor** — show all 4 tables: `artifacts`, `feedback`, `share_links`, `feedback_summaries`.
-2. Click **Authentication → Policies** — show the RLS policies on `artifacts` (`anon_read_public_artifacts`).
-3. Click **Storage** — show the `artifacts` bucket is **Private**.
+**Vercel dashboard (`vercel.com/dashboard`):**
+1. Open the project. Show the **Deployments** tab — latest deployment green, domain live.
+2. Click into **Settings → Environment Variables** — show the variable names (not values). 6 vars: the two Supabase keys, the admin key, Gemini key and model, anon key.
 
-**In VS Code / the repo (or GitHub):**
-4. Open `WRITEUP.md` briefly — scroll through the architecture diagram and the production evolution section.
+**Supabase dashboard (`supabase.com/dashboard`):**
+3. Click **Table Editor** — show all 4 tables: `artifacts`, `feedback`, `share_links`, `feedback_summaries`.
+4. Click **Authentication → Policies** — show the RLS policy on `artifacts` (`anon_read_public_artifacts`).
+5. Click **Storage** — show the `artifacts` bucket is **Private**.
 
 ### What to say
 
-> _(on tables)_ "Four tables. FK cascades on artifact delete clean up feedback, share links, and the summary in one operation."
+> _(on Vercel)_ "Deployed to Vercel — zero-config Next.js hosting. Six environment variables, none of them in the repo."
 
-> _(on RLS)_ "Row Level Security is enabled on all four tables. Direct anon-key REST calls only ever return public data — the visibility enforcement is at the database layer, not just the application layer. Defense in depth."
+> _(on env vars)_ "The admin key, Gemini key, and Supabase service role key never leave the server. The model name is an env var — swapping Gemini Flash for Pro or a different provider is a config change, not a code change."
 
-> _(on storage)_ "Private bucket. Files are never publicly accessible. Every preview goes through a server-generated signed URL after the access check passes."
+> _(on tables)_ "Four tables in Supabase Postgres. FK cascades — deleting an artifact cleans up its feedback, share links, and cached summary in one operation."
 
-> _(on WRITEUP)_ "The architectural decisions — what I built, what I cut, and why — are documented here. The production evolution section outlines what a real enterprise deployment looks like: Azure, Terraform, managed secrets, per-user OAuth on the MCP server instead of a shared key."
+> _(on RLS)_ "Row Level Security on all four tables. Even direct REST calls with the anon key only return public artifacts — the visibility boundary is enforced at the database layer, not just the application layer."
+
+> _(on storage)_ "Private bucket. Every file preview goes through a server-generated signed URL after the access check passes. The raw storage path is never sent to the client."
 
 ### 💡 Highlight — impress the reviewer
-- **Service layer pattern:** Briefly mention that both the web routes and the MCP adapter routes call the same `src/lib/services/` functions. No logic duplication — both surfaces stay behaviorally identical.
-- **Mutations via Server Actions:** Web UI delete and edit go through Next.js Server Actions, not public REST endpoints. The destructive surface has no public HTTP exposure.
+- **No secrets in repo:** Vercel env vars panel shows the names but not the values — make sure no values are visible on screen.
+- **RLS as defense in depth:** App-layer visibility checks + database-layer RLS = two independent enforcement points. Neither alone is sufficient.
+- **Model as config:** The `GEMINI_MODEL` env var is worth pointing at — it signals that the LLM choice is an operational decision, not hardcoded.
 
 ---
 
