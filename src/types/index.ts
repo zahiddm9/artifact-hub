@@ -59,6 +59,13 @@ export interface FeedbackSummary {
 
 // API request/response shapes
 
+export interface UpdateArtifactBody {
+  title?: string;
+  description?: string | null;
+  tags?: string[];
+  visibility?: ArtifactVisibility;
+}
+
 export interface CreateArtifactBody {
   title: string;
   description?: string;
