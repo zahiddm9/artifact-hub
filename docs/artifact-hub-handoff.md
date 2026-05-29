@@ -1,9 +1,9 @@
 # Artifact Hub — Handoff Document
 
-**Date:** 2026-05-29 (updated)
+**Date:** 2026-05-29 (final update)
 **Repo:** `C:\Users\zahid\Documents\Github\ezra-coaching`  
 **Branch:** `master`  
-**Last commit:** `e7577f6` — Fix gallery fetch limit: explicit GALLERY_CLIENT_FILTER_LIMIT = 500
+**Last commit:** `da658b7` — Polish frontend UX and docs
 
 ---
 
@@ -386,3 +386,191 @@ Same as original handoff — next session is pure manual verification, no code:
 1. **`superpowers:verification-before-completion`** — before claiming any deployment step complete
 2. **`superpowers:systematic-debugging`** — if any smoke test step fails (Supabase CORS, Gemini API error, MCP 401)
 3. **`verify`** — to confirm specific flows work end-to-end in the running app
+
+---
+
+## UPDATE — 2026-05-29 (Deployment + Verification Complete)
+
+**Last commit:** `da658b7`  
+**Branch:** `master`
+
+### What happened in this session
+
+Deployment and MCP verification completed. The project is fully submitted.
+
+---
+
+### Deployment status
+
+| Step | Status | Detail |
+|---|---|---|
+| Database seeded | ✅ Done | 3 artifacts + 15 feedback entries confirmed via `/api/artifacts` |
+| Vercel deployment | ✅ Done | Live at `https://artifact-hub-green.vercel.app` |
+| Live smoke test | ✅ Done | Gallery, filters, preview, feedback, summarize, share, publish all verified |
+| MCP build | ✅ Done | `mcp/dist/index.js` compiled |
+| Claude Desktop config | ✅ Done | Configured at `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json` (Microsoft Store version of Claude Desktop — non-standard path) |
+| MCP tool verification | ✅ Done | All 7 tools tested and confirmed working |
+
+### MCP verification results
+
+All 7 tools confirmed working against `https://artifact-hub-green.vercel.app`:
+
+| Tool | Result |
+|---|---|
+| `list_artifacts` | ✅ Returns all artifacts including unlisted |
+| `get_artifact` | ✅ Full detail, feedback list, signed Supabase URL |
+| `create_share_link` | ✅ Expiring token created |
+| `summarize_feedback` | ✅ Gemini summary returned, cache-first logic works |
+| `add_feedback` | ✅ Feedback created (response is flat object, not nested under `feedback` key) |
+| `update_feedback_status` | ✅ Status updated to `resolved` |
+| `publish_artifact` | ✅ Unlisted artifact published with auto share link |
+
+**Note on response shape:** `POST /api/mcp/feedback` returns the feedback object directly at the root (not nested under `feedback`). `GET /api/mcp/artifacts/:id` returns `signedUrl` (camelCase) not `signed_url`. Both are correct — just note for any future tooling.
+
+---
+
+### What remains
+
+Two steps only:
+
+**Step 5 — WRITEUP.md**
+Add `https://artifact-hub-green.vercel.app` wherever `[fill in after deployment]` appears. Commit.
+
+**Step 6 — Session logs**
+```powershell
+mkdir claude-sessions
+copy "$env:USERPROFILE\.claude\projects\C--Users-zahid-Documents-Github-ezra-coaching\*.jsonl" claude-sessions\
+git add claude-sessions/
+git commit -m "Add Claude Code session logs"
+```
+
+Note: submission folder is `claude-sessions/` (not `sessions/` as stated in `requirements.md`).
+
+---
+
+### Live URLs
+
+| Resource | URL |
+|---|---|
+| Live app | `https://artifact-hub-green.vercel.app` |
+| Gallery | `https://artifact-hub-green.vercel.app/` |
+| Publish | `https://artifact-hub-green.vercel.app/publish` |
+| MCP base | `https://artifact-hub-green.vercel.app/api/mcp/*` |
+
+### Sensitive values (not committed — keep private)
+
+- `ARTIFACT_HUB_ADMIN_KEY` — in `.env.local` and Vercel env vars; also in Claude Desktop config
+- `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY` — in `.env.local` and Vercel env vars only
+
+---
+
+### Suggested skills for final steps
+
+No code changes remain. No skills needed for WRITEUP.md edit or log collection. If anything breaks:
+
+1. **`superpowers:systematic-debugging`** — for any unexpected issues
+2. **`superpowers:verification-before-completion`** — before marking submission complete
+
+---
+
+## UPDATE — 2026-05-29 (Engineering Quality + Product Polish + Submission Prep)
+
+**Last commit:** `9031000` — docs: update WRITEUP and MCP README for final submission  
+**Branch:** `main`
+
+### What happened in this session
+
+A full product-quality audit was run via the `product-requirements-reviewer` agent. All identified gaps were addressed across multiple passes. The repo is now in a clean, submission-ready state. See `docs/TRACKER.md` for the full commit-level history.
+
+---
+
+### Summary of all changes made
+
+**Engineering quality pass** (commits `9535b4f` → `e0ef154`)
+- Fixed 2 ESLint errors (ThemeProvider setState-in-effect, share page impure Date.now)
+- Removed dead code from `supabase.ts` (`createBrowserClient`, `createSupabaseServerClient`, `@supabase/ssr` import)
+- Installed Vitest; added `test`, `test:run`, `typecheck` scripts
+- 16 tests: `isMcpAuthorized` (5) + `isValidSummaryData` (11)
+- GitHub Actions CI: lint + typecheck + test on push/PR to main
+
+**Finishing improvements pass** (commits `fa43ae6` → `9db7793`)
+- PDF fallback "Open in new tab ↗" link (fixes blank on mobile/iOS Safari)
+- Gallery subtitle: "Browse and manage" → "Browse, review, and share content"
+- Summary footer: adds `generated_at` timestamp
+- Share link expiry: always visible below artifact title; improved expired/404 error copy
+- ShareButton: "Copied!" flash + `cursor-pointer`
+- Owner/Visitor gallery toggle (`?view=owner`): visitor = read-only public gallery; owner = all artifacts, Publish button, unlisted amber badges
+- MCP all 9 tools: contextual workflow next-step hints on every response
+
+**Owner delete + edit** (commits `e2caed4` → `7161ed0`)
+- `deleteArtifact` + `updateArtifact` service functions
+- `DELETE /api/artifacts/[id]` + `PATCH /api/artifacts/[id]` routes
+- `DELETE /api/feedback/[id]` route + `deleteFeedback` service
+- `DeleteCardButton`: two-click confirm trash icon on gallery cards (owner mode)
+- `ArtifactActions`: inline edit form (title/description/tags/visibility) + delete confirm on detail page
+- `DeleteFeedbackButton`: per-item delete on feedback list (owner mode, detail page only)
+- Bug fix: unlisted artifacts now accessible to owner on detail page (`?view=owner` bypasses 403)
+- MCP: `delete_artifact` + `update_artifact` tools (now 9 total)
+
+**Hydration + script fix** (commit `4de90b8`)
+- Reverted ThemeProvider lazy useState (was causing server/client theme mismatch → hydration crash)
+- Replaced bare `<script dangerouslySetInnerHTML>` with `<Script strategy="beforeInteractive">` from `next/script`
+
+**Rate limiting** (commit `43a2050`)
+- `src/middleware.ts`: per-IP fixed-window rate limiting
+- Limits: publish 10/min, feedback 30/min, share 20/min, summarize 5/min
+- Returns 429 + `Retry-After` header; in-memory (comment notes Upstash upgrade path)
+
+**Test expansion** (commit `0148c88`)
+- Extracted `isShareLinkExpired` from `validateShareLink` → 4 tests (access-control boundary)
+- Extracted `checkRateLimit` from middleware → 4 tests (window/count algorithm)
+- Total: **24 tests across 4 files**
+
+**Repo cleanup + submission docs** (commits `44d9474`, `9031000`)
+- Removed unused Next.js default public/ assets (file.svg, globe.svg, next.svg, vercel.svg, window.svg)
+- Moved `artifact-hub-handoff.md` → `docs/artifact-hub-handoff.md`
+- Removed empty `supabase/seed.sql`
+- Added `supabase/migrations/002_rls.sql` for reproducibility (already applied to hosted DB)
+- **WRITEUP.md fully rewritten** — accurate tool count (9), rate limiting documented, delete/edit documented, Owner/Visitor model explained, architecture + engineering quality strengthened, "what I'd do next" updated
+- **mcp/README.md** updated with `delete_artifact` and `update_artifact` in tool table
+
+---
+
+### Current technical state
+
+| Check | Status |
+|---|---|
+| `npm run lint` | 0 errors, 8 warnings (all intentional `_` unused vars) |
+| `npm run typecheck` | Clean |
+| `npm run test:run` | 24/24 pass |
+| `cd mcp && npm run build` | Clean, 9 tools |
+| Live URL | `https://artifact-hub-green.vercel.app` |
+
+---
+
+### What still remains (2 required deliverables)
+
+**1. Session logs** — Copy `.jsonl` files to `claude-sessions/` and commit:
+```powershell
+mkdir claude-sessions
+copy "$env:USERPROFILE\.claude\projects\C--Users-zahid-Documents-Github-ezra-coaching\*.jsonl" claude-sessions\
+git add claude-sessions/
+git commit -m "chore: add Claude Code session logs"
+```
+
+**2. Walkthrough** — Add a "Walkthrough" section to `WRITEUP.md` covering these flows:
+1. Browse gallery as Visitor (public-only, no Publish button)
+2. Switch to Owner mode — see unlisted artifact with amber badge
+3. Click unlisted artifact → view detail with Edit/Delete/Share controls
+4. Edit artifact metadata inline, save
+5. Leave feedback, submit
+6. Summarize feedback → see structured digest
+7. Share → copy URL → open in new tab
+8. (Optional) MCP: `list_artifacts`, `get_artifact`, `summarize_feedback` in Claude Desktop
+
+---
+
+### Suggested skills for next session
+
+- **`superpowers:verification-before-completion`** — run before declaring submission complete
+- No implementation skills needed — remaining work is file copy + WRITEUP prose only

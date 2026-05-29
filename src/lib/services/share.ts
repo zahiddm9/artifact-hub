@@ -2,6 +2,11 @@ import { createAdminClient } from "@/lib/supabase";
 import { nanoid } from "nanoid";
 import type { Artifact, ShareLink, CreateShareLinkBody, ServiceResult } from "@/types";
 
+// Exported for testing. The <= means a link expiring exactly now is already expired.
+export function isShareLinkExpired(expiresAt: string): boolean {
+  return new Date(expiresAt) <= new Date();
+}
+
 export async function createShareLink(
   body: CreateShareLinkBody
 ): Promise<ServiceResult<ShareLink>> {
@@ -52,7 +57,7 @@ export async function validateShareLink(
     return { ok: false, status: 500, message: error.message };
   }
 
-  if (new Date(data.expires_at) <= new Date()) {
+  if (isShareLinkExpired(data.expires_at)) {
     return { ok: false, status: 410, message: "Share link has expired" };
   }
 

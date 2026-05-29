@@ -205,9 +205,108 @@ Verification: compiled CSS confirms all violet classes present — `bg-violet-60
 
 Unchanged as planned: all zinc structural classes, semantic badges (red/green/blue/amber), secondary outlined buttons, text colors, borders, backgrounds.
 
+### Engineering Quality Pass (complete)
+
+Product-quality gap audit completed via `product-requirements-reviewer` agent. Plan: `docs/plans/2026-05-29-engineering-quality-fixes.md`.
+
+**Lint fixes (commit `9535b4f`)**
+- `src/components/ThemeProvider.tsx` — replaced `useEffect` + `setThemeState` with lazy `useState` initializer reading localStorage; separate DOM-only effect for `applyTheme`. Fixes `react-hooks/set-state-in-effect`.
+- `src/app/share/[token]/page.tsx` — replaced `Date.now()` with `new Date().getTime()`. Fixes `react-hooks/purity`.
+- Result: `npm run lint` → 0 errors, 7 warnings (all pre-existing intentional `_` unused vars)
+
+**Dead code removal (commit `d0f58c0`)**
+- `src/lib/supabase.ts` — removed `createBrowserClient`, `createSupabaseServerClient`, and `@supabase/ssr` import. These were never called and implied a cookie-based SSR auth layer that doesn't exist. `createAdminClient` is the only export.
+
+**Vitest + tests (commit `87bd765`)**
+- `vitest` installed as devDependency
+- `vitest.config.ts` — node environment, `@` alias matching tsconfig
+- `package.json` — added `test`, `test:run`, `typecheck` scripts
+- `src/lib/auth.ts` — `import` → `import type` for `NextRequest` (correct; only used as type annotation)
+- `src/lib/services/summarize.ts` — exported `isValidSummaryData` for testing
+- `src/lib/auth.test.ts` — 5 tests for `isMcpAuthorized` (correct key, wrong key same length, length mismatch, missing header, missing env var)
+- `src/lib/services/summarize.test.ts` — 11 tests for `isValidSummaryData` (valid shape, empty arrays, null, string, each missing/wrong-typed required field)
+- All 16 tests pass in ~267ms
+
+**GitHub Actions CI (commit `e0ef154`)**
+- `.github/workflows/ci.yml` — runs on push to `main` and all PRs: `npm ci` → `npm run lint` → `npm run typecheck` → `npm run test:run`
+- No `next build` (avoids secrets/prerender failure; Vercel handles production builds)
+
+**Remaining P0 gaps (not yet addressed):**
+- RLS migration `002_rls.sql` — SQL written in `docs/plans/2026-05-29-product-correctness-fixes.md`, needs `npx supabase db push`
+- Session logs — need copy to `claude-sessions/` and commit
+- Walkthrough — needs section added to WRITEUP.md
+
+### Finishing Improvements Pass (complete)
+
+Plan: `docs/plans/2026-05-29-finishing-improvements.md`. 9 commits covering UX polish, MCP workflow quality, and the owner/visitor demo model.
+
+**UX polish**
+- `fa43ae6` — PDF fallback "Open in new tab ↗" link below iframe (`ArtifactPreview.tsx`). Fixes blank box on mobile/iOS Safari for required content type.
+- `c071675` — Gallery subtitle: "Browse and manage" → "Browse, review, and share AI-generated content"; summary footer adds `generated_at` timestamp (`page.tsx`, `FeedbackSummary.tsx`).
+- `92463c1` — Share link expiry always visible below artifact title; expired/not-found page copy is now actionable ("Ask the sender to create a new link…") (`share/[token]/page.tsx`).
+- `e338fdf` — ShareButton: `cursor-pointer` on both buttons; Copy shows "Copied!" in green for 2 seconds then resets (`ShareButton.tsx`).
+
+**Owner/visitor demo toggle**
+- `98f3342` — Gallery toggle: Visitor (public-only, read-only) vs Owner (all artifacts including unlisted with amber badge). `clearAll` preserves `?view=` param. (`page.tsx`, `ArtifactCard.tsx`, `GalleryFilter.tsx`).
+- `85bc4e7` — Visitor mode hides Publish button; owner banner updated to "Owner view — you can see and publish all artifacts including unlisted." (`Header.tsx`, `page.tsx`).
+- Share link and direct artifact detail pages remain open for feedback regardless of mode — those are for explicitly invited reviewers.
+
+**MCP workflow quality**
+- `9db7793` — Next-step hints added to all 7 tool responses: `list_artifacts` → get_artifact prompt; `get_artifact` → summarize or add_feedback based on feedback count; `add_feedback` → suggest summary; `update_feedback_status` → regenerate digest on resolve; `create_share_link` → explains what the link enables; `publish_artifact` → suggests next action; `summarize_feedback` → adds `generated_at` to metadata line. MCP dist rebuilt.
+
+**Final state:** 0 lint errors · typecheck clean · 16/16 tests pass · MCP builds clean.
+
+### Owner Delete + Edit Pass (complete)
+
+Plan: `docs/plans/2026-05-29-owner-delete-edit.md`. Full CRUD for owner mode — delete and edit artifacts, delete individual feedback items.
+
+**Service layer**
+- `e2caed4` — `deleteArtifact` (removes storage file + DB row, cascade cleans feedback/share_links/summaries) + `updateArtifact` (PATCH title/description/tags/visibility) added to `artifacts.ts`. `UpdateArtifactBody` added to `types/index.ts`.
+- `311a12f` — `deleteFeedback` added to `feedback.ts`.
+
+**API routes**
+- `70ffb8f` — `DELETE /api/artifacts/[id]` + `PATCH /api/artifacts/[id]` added to existing route file.
+- `311a12f` — `DELETE /api/feedback/[id]` (new route file).
+
+**Gallery — owner mode controls**
+- `c6a0868` — `isOwnerView` propagated through `GalleryFilter` → `ArtifactCard`; cards link to `/artifacts/[id]?view=owner` in owner mode.
+- `1f09fec` — `DeleteCardButton`: trash icon overlaid on each gallery card in owner mode; two-click confirm (first click → "Delete?" for 3s, second click → DELETE + refresh).
+
+**Detail page — owner mode controls**
+- `110e778` — `ArtifactActions` client component: inline edit form (title, description, tags, visibility with select) + delete confirm ("Delete this artifact and all its feedback?" → "Yes, delete" → redirects to owner gallery). Shown only when `?view=owner`.
+- `311a12f` — `DeleteFeedbackButton` on each feedback item in owner mode (same two-click confirm pattern).
+
+**Bug fix**
+- `7161ed0` — Unlisted artifacts blocked owner access on detail page (`if (visibility === "unlisted")` ran before `isOwnerView` check). Fixed to `if (visibility === "unlisted" && !isOwnerView)`.
+
+**MCP**
+- `bebbd14` — `delete_artifact` + `update_artifact` tools registered. `del()` helper added to `mcp/src/client.ts`. Now 9 MCP tools total.
+
+### Hydration + Script Fix (complete)
+
+- `4de90b8` — Reverted `ThemeProvider` lazy `useState` initializer (caused server/client theme mismatch → hydration crash). Back to `useState(DEFAULT_THEME)` + mount-only `useEffect` with `// eslint-disable-next-line` comment. Replaced `<script dangerouslySetInnerHTML>` in `<head>` with `<Script strategy="beforeInteractive">` from `next/script` to silence React 18 script-in-component warning.
+
+### Product Polish Pass (complete)
+
+- `cff78a8` — Gallery subtitle: "Browse, review, and share AI-generated content" → "Browse, review, and share content".
+- `311a12f` — Feedback deletion available to owner on artifact detail page.
+
+### Rate Limiting (complete)
+
+- `43a2050` — `src/middleware.ts`: per-IP fixed-window rate limiting on the four open POST endpoints. Limits: publish 10/min, feedback 30/min, share 20/min, summarize 5/min. Returns 429 with `Retry-After` header. In-memory store (per-instance); comment notes Upstash Redis as the multi-instance upgrade path.
+
+### Test Expansion (complete)
+
+- `0148c88` — Extracted `isShareLinkExpired(expiresAt)` from `validateShareLink` and `checkRateLimit(store, key, max, windowMs, now)` from middleware as pure exported functions. Added two new test files:
+  - `src/lib/services/share.test.ts` — 4 tests: past, future, 1ms expired, 1ms remaining (access-control boundary)
+  - `src/middleware.test.ts` — 4 tests: first request, up to max, max+1 blocked with retryAfter, window reset
+  - Total: **24 tests across 4 files**, all passing
+
+**Final state:** 0 lint errors · typecheck clean · 24/24 tests pass · MCP builds clean (9 tools).
+
 ## In progress
 
-* Manual deployment and verification (Phase 6, pending Vercel)
+* P0 gap resolution: RLS migration, session logs, walkthrough
 
 ## Blockers and decisions
 

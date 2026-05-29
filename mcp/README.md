@@ -61,6 +61,8 @@ The server writes a warning to stderr (not stdout — stdio transport owns stdou
 | `update_feedback_status` | Change the status of a feedback item: open, resolved, or needs_review. MCP-only — not available in the web UI. |
 | `create_share_link` | Create an expiring share link for any artifact. Default TTL: 30 days. |
 | `summarize_feedback` | Get an AI-generated structured digest of all feedback (Gemini 2.5 Flash). Returns cached result if feedback is unchanged. Pass `force_refresh: true` to regenerate. |
+| `delete_artifact` | Permanently delete an artifact and all its feedback, share links, and summary. Cannot be undone. |
+| `update_artifact` | Edit an artifact's title, description, tags, or visibility. Omit any field to leave it unchanged. |
 
 ## Example Conversation
 

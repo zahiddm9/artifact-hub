@@ -25,7 +25,7 @@ Return a JSON object with exactly these fields:
 - approval_count: integer count of approvals (feedback_type=approval)`;
 }
 
-function isValidSummaryData(data: unknown): data is FeedbackSummaryData {
+export function isValidSummaryData(data: unknown): data is FeedbackSummaryData {
   if (!data || typeof data !== "object") return false;
   const d = data as Record<string, unknown>;
   return (

@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "crypto";
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 
 // Validates the x-api-key header for /api/mcp/* routes.
 // Uses constant-time comparison to avoid timing-based key enumeration.

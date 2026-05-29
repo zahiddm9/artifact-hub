@@ -11,6 +11,7 @@ interface PublishResponse {
     visibility: string;
   };
   shareLink?: { token: string; expires_at: string };
+  shareError?: string;
 }
 
 export function registerPublishTools(server: McpServer): void {
@@ -54,7 +55,16 @@ export function registerPublishTools(server: McpServer): void {
         return {
           content: [{
             type: "text" as const,
-            text: `Artifact published: "${artifact.title}"\nID: ${artifact.id} | Type: ${artifact.type.toUpperCase()} | Visibility: unlisted\n\nShare link (expires ${expires}):\n${shareUrl}`,
+            text: `Artifact published: "${artifact.title}"\nID: ${artifact.id} | Type: ${artifact.type.toUpperCase()} | Visibility: unlisted\n\nShare link (expires ${expires}):\n${shareUrl}\n\n→ Share the link above. Recipients can view the artifact and leave feedback directly.`,
+          }],
+        };
+      }
+
+      if (artifact.visibility === "unlisted" && !shareLink) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `Artifact published: "${artifact.title}"\nID: ${artifact.id} | Type: ${artifact.type.toUpperCase()} | Visibility: unlisted\n\nWARNING: Share link creation failed. The artifact is saved but inaccessible via the web UI.\nTo recover, call create_share_link with artifact_id: ${artifact.id}`,
           }],
         };
       }
@@ -62,7 +72,7 @@ export function registerPublishTools(server: McpServer): void {
       return {
         content: [{
           type: "text" as const,
-          text: `Artifact published: "${artifact.title}"\nID: ${artifact.id} | Type: ${artifact.type.toUpperCase()} | Visibility: public\n\nURL: ${baseUrl}/artifacts/${artifact.id}`,
+          text: `Artifact published: "${artifact.title}"\nID: ${artifact.id} | Type: ${artifact.type.toUpperCase()} | Visibility: public\n\nURL: ${baseUrl}/artifacts/${artifact.id}\n\n→ Use add_feedback to start the review, or create_share_link to generate a controlled-access link.`,
         }],
       };
     }

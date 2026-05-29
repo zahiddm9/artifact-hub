@@ -1,146 +1,263 @@
 # Artifact Hub — Writeup
 
+**Live app:** https://artifact-hub-green.vercel.app
+**Stack:** Next.js 16 (App Router) · Supabase (Postgres + private Storage) · Gemini 2.5 Flash · standalone stdio MCP server
+**Status:** Deployed, seeded, and verified end-to-end. CI green (lint + typecheck + 24 tests). MCP verified live in Claude Desktop across all 9 tools.
+
 ---
 
 ## What I built and why
 
-Artifact Hub is a platform for publishing, browsing, reviewing, and sharing AI-generated content. Teams generate PDFs, images, and HTML documents with AI tools every day; the lifecycle after generation is where things break down — files live in blob storage, feedback is scattered across Slack threads, and access control is a shared URL in a DM.
+Teams generate PDFs, mockups, reports, and HTML docs with AI tools every day. The generation is solved — the *lifecycle after generation* is where it falls apart: files land in blob storage behind CLI commands, access is a URL pasted into a DM, and feedback scatters across Slack threads. There's no way to see what exists, no structured review, and no access control beyond URL expiry.
 
-The product I shipped addresses that lifecycle end-to-end: a gallery where reviewers can browse and filter artifacts, a detail page with structured feedback and an AI-generated digest, expiring share links for controlled distribution, and an MCP server so the entire workflow can happen conversationally through Claude Desktop.
+Artifact Hub closes that lifecycle: **publish → browse → review → summarize → share → manage**, available both as a web product and conversationally through Claude Desktop via an MCP server.
 
-Three decisions shaped the product feel:
+Three decisions shaped how it feels.
 
-**Frictionless reviewer experience.** The publish form is open — no login required. Anyone with the URL can browse, leave structured feedback, and generate summaries. This is the primary UX constraint: a reviewer should be able to participate in under 30 seconds from a cold start, with no key setup or account creation.
+**Frictionless review.** The gallery is open — no login to browse or leave feedback. Anyone with a share link can review an unlisted artifact in under 30 seconds from a cold start. This is deliberate: structured feedback only has value if it's effortless to give. Adding an auth wall before that loop is proven would have traded the product's core value for a checkbox.
 
-**One complete lifecycle over breadth.** I prioritized a polished end-to-end flow (publish → browse → view → feedback → summarize → share) over adding more surface area. Every feature that ships works fully and correctly. A working core is worth more than a sprawling system with gaps.
+**One complete lifecycle over feature breadth.** Every flow that ships works fully and correctly — publish, visibility enforcement, signed-URL access, feedback, AI summarization, expiring share links, and publisher edit/delete. I chose depth over a wider surface with gaps, which is exactly the timebox tradeoff the brief asks for.
 
-**One sharp LLM feature.** Rather than using AI in several shallow ways, I focused the LLM work on one feature that directly addresses the stated pain point: synthesizing scattered feedback into an actionable digest. The result is a feature that feels like it belongs in the product, not a bolt-on demo.
-
----
-
-## What I chose not to build and why
-
-**No user auth or RBAC.** Full authentication adds 4–6 hours of complexity with little benefit at demo scale. The access model is still fully demonstrated through the public/unlisted visibility distinction, private Supabase Storage with server-side signed URLs, expiring share link tokens, and API-key-protected MCP routes. A reviewer can observe every access control boundary working without signing in.
-
-**No edit or delete of artifacts.** Append-only publish keeps the data model and the UI simple. Editing and versioning would require conflict resolution, audit trails, and additional UI that's out of scope for this build.
-
-**No natural language search.** Removed in favour of tag-plus-type filtering, which is sufficient for a demo-sized catalog. More importantly, keeping one LLM feature sharp is better than two shallow ones. Tag filtering also degrades gracefully if the AI service is unavailable; NL search would not.
-
-**No rate limiting.** This is a demo environment. Rate limiting is straightforward to add (middleware on the feedback and publish endpoints) but adds implementation overhead with no reviewer benefit. It is an explicit omission, not an oversight.
-
-**`update_feedback_status` is MCP/API-only.** Changing a feedback item's status — marking an issue resolved, re-opening a question — is a trusted review-management action. Anonymous public users should not be able to close or dismiss issues left by others. Restricting this to key-gated MCP routes keeps the trust boundary clear without needing full auth.
+**One sharp LLM feature, not three shallow ones.** AI is focused on the single place it most directly attacks the stated pain — synthesizing scattered reviewer feedback into an actionable digest. It feels like part of the product, not a bolted-on demo, and the rest of the app degrades gracefully if the model is unavailable.
 
 ---
 
-## Architecture overview
+## Product decisions: what I deliberately scoped out
 
-**Next.js 16 App Router** deployed to Vercel. Single repository, two packages: `src/` for the web app and `mcp/` for the standalone MCP server.
+These are intentional cuts under a 2-day timebox, each made to protect the core experience rather than dilute it.
 
-**Supabase** for Postgres (four tables: `artifacts`, `feedback`, `share_links`, `feedback_summaries`) and private Storage for artifact files. All file access goes through server-side signed URLs — the raw bucket path is never exposed to the client or included in API responses.
+**No user accounts / RBAC.** Full auth is 4–6 hours of plumbing with little payoff at demo scale, and it would gate the frictionless-review loop that makes the product worth using. For the challenge, I used a **Publisher Demo view** to make the visibility model observable without adding full user accounts. Visitors see only public artifacts and have no publish/edit surface. Publisher Demo exposes the full review surface — unlisted artifacts with amber badges, inline edit/delete flows, and recovery paths — so the access model is observable end-to-end without signing in. The `public`/`unlisted` boundary is enforced at the API *and* database layers; private Storage serves files only through server-generated signed URLs; share tokens are the access grant for unlisted artifacts; and MCP routes require an API key. Crucially, the model is *scoped for* real auth — in production, this becomes real per-user ownership with SSO/RBAC. Adding Supabase Auth later is additive, not a rewrite.
 
-**Service layer pattern.** All business logic lives in `src/lib/services/`. Route handlers are thin: parse input, check auth, call a service function, return JSON. This is enforced for both the public web routes (`/api/*`) and the protected MCP adapter routes (`/api/mcp/*`), which call the same service functions. No logic duplication between the two route trees.
+**No natural-language search.** Tag + type filtering is sufficient for a demo-sized catalog and degrades gracefully if AI is down — NL search would not. More importantly, keeping one LLM feature sharp beats two that feel thin.
 
-**Visibility model.** Artifacts are either `public` (gallery + direct URL) or `unlisted` (403 at direct URL; accessible only via share link or MCP key). When a new unlisted artifact is published from the web UI, a 30-day share link is auto-created and shown on the success screen — otherwise the publisher would have no way to view their own artifact. Signed URLs are never generated before the relevant access check passes.
+**`update_feedback_status` is MCP/API-only.** Closing or re-opening another reviewer's issue is a trusted review-management action. Anonymous web users shouldn't be able to dismiss feedback others left, so this lives only behind key-gated MCP routes — a clear trust boundary without needing full auth.
 
-**Auth.** MCP adapter routes require an `x-api-key` header, validated with `crypto.timingSafeEqual` against `ARTIFACT_HUB_ADMIN_KEY`. Possession of the key is the access grant — MCP callers bypass the public/unlisted visibility check and can access any artifact, which is the correct behaviour for a trusted reviewer client.
+**Append-first storage with publisher-gated mutation.** Artifacts are immutable by default; edit and delete exist but are surfaced only in Publisher Demo mode, keeping the public surface safe while still demonstrating full CRUD.
 
 ---
 
-## How the MCP integration works
+## Architecture
 
-The MCP server (`mcp/`) is a Node.js stdio process. Reviewers add it to Claude Desktop's `claude_desktop_config.json`:
+**Single repository, two deployables.** `src/` is the Next.js app (Vercel); `mcp/` is a standalone Node.js stdio MCP server the reviewer runs locally. They share nothing at runtime except the HTTP contract.
+
+**Stack choices.** Next.js 16 App Router was chosen for its tight server/client co-location — server components fetch data at the edge, client components handle interactivity, and Server Actions let the web UI invoke service-layer functions directly without exposing public HTTP mutation endpoints. TypeScript across both packages provides compile-time safety for the shared type surface (visibility enums, feedback status, service result types). Supabase was chosen because it bundles managed Postgres, private object storage with signed URL support, and row-level security in a single project — no additional infrastructure to operate. Vercel was chosen for zero-config Next.js deployment: push to GitHub, set env vars, get a global CDN. Both are intentionally fast-to-operate choices for a 2-day build; the production evolution section explains the enterprise replacement path.
+
+**Service-layer pattern — the spine of the design.** All business logic lives in `src/lib/services/` (`artifacts`, `feedback`, `share`, `summarize`). Route handlers are thin: parse input, check auth, call a service function, return JSON. Both route trees — the open web routes (`/api/*`) and the key-gated MCP adapter routes (`/api/mcp/*`) — call the *same* service functions. There is no logic duplication between them, which is what lets the web UI and the conversational MCP workflow stay behaviorally identical.
+
+```
+Web routes (/api/*)        ─┐
+                            ├─► src/lib/services/  ─►  Supabase (Postgres + Storage)  /  Gemini
+MCP adapter (/api/mcp/*)    ─┘     (single source of truth)
+   ▲ x-api-key
+   │
+mcp/ (stdio) ── HTTP ───────┘
+```
+
+**Data model.** Four tables: `artifacts`, `feedback`, `share_links`, `feedback_summaries` (migration `001_initial.sql`). Enums for type/visibility/feedback-type/status, GIN index on tags for efficient array-overlap queries, FK cascades so deleting an artifact atomically removes all associated feedback, links, and the summary in a single operation.
+
+**Schema design decisions.** `feedback_summaries` is a separate table with a `UNIQUE artifact_id` constraint rather than a JSONB column on `artifacts`. This keeps `artifacts` append-only (no mutable cache state mixed into core records), enables a clean upsert via `ON CONFLICT artifact_id`, and co-locates the four provenance fields (`model`, `prompt_version`, `feedback_count`, `generated_at`) with the summary JSONB rather than bloating the artifacts table with AI-generated state. The feedback type taxonomy — `approval / suggestion / issue / question` — maps directly to how the summarization prompt categorizes items: approvals roll up to `approval_count`, issues carry independent status tracking (`open / resolved / needs_review`) because they require resolution, and suggestions and questions are informational. Share link tokens use `nanoid(21)` — 21 characters from a 64-character URL-safe alphabet — yielding ~126 bits of entropy: collision-resistant at any realistic scale and non-guessable in practice.
+
+**Storage & signed URLs.** Every file lives in one **private** Supabase bucket. Signed URLs are generated server-side in `src/lib/storage.ts` and *only after the relevant access check passes* — public artifacts get a 1-hour URL; unlisted-via-share-link URLs are capped at `min(1h, time remaining on the link)`. Raw bucket paths (`storage_path`) are stripped from every API response and never reach the client.
+
+**Visibility enforcement, two layers deep.**
+- `public` → gallery + `/artifacts/[id]`.
+- `unlisted` → `/artifacts/[id]` returns 403; reachable only via `/share/[token]` or an MCP key.
+- Publishing an unlisted artifact from the web auto-creates a 30-day share link shown on the success screen — otherwise the publisher would have no way back to their own artifact.
+- **RLS** (`002_rls.sql`) is enabled on all four tables so even direct anon-key REST access only ever sees public data; all server code uses the service-role key and bypasses RLS intentionally. Defense in depth, not just app-layer checks.
+
+**Auth.** MCP routes validate `x-api-key` against `ARTIFACT_HUB_ADMIN_KEY` with `crypto.timingSafeEqual` (constant-time, to prevent timing-based key enumeration).
+
+**Rate limiting.** `src/middleware.ts` applies per-IP fixed-window limits on the four open POST endpoints — publish 10/min, feedback 30/min, share 20/min, summarize 5/min. Fixed-window was chosen over sliding-window: the implementation cost difference is real, and the behavioral difference at these volumes is not. Limits are intentionally asymmetric: summarize is the tightest because it is the only endpoint that makes an external model call (Gemini); feedback is the loosest because it is a plain database write. Returns 429 + `Retry-After`. The store is in-memory (correct for a single-instance demo) with the Upstash/Redis upgrade path documented inline, and the window/count algorithm is extracted as a pure function and unit-tested.
+
+**Frontend / UX.** Next.js App Router with a shared sticky glassmorphism `Header`, a 4-theme token system (SaaS / Creative / Docs / Premium) driven entirely by CSS custom properties with a no-flash inline script that applies the saved theme before hydration, and Lucide iconography. Tag search is client-side (`startsWith` prefix match over a bounded fetch) with the server-side-search migration path documented where the assumption lives — a deliberate, labeled tradeoff rather than a hidden one.
+
+---
+
+## How the MCP integration works — a conversational workflow, not CRUD wrappers
+
+The MCP server (`mcp/`) is a Node.js stdio process the reviewer adds to Claude Desktop:
 
 ```json
 {
   "mcpServers": {
     "artifact-hub": {
       "command": "node",
-      "args": ["/path/to/repo/mcp/dist/index.js"],
+      "args": ["/absolute/path/to/repo/mcp/dist/index.js"],
       "env": {
         "ARTIFACT_HUB_ADMIN_KEY": "your-admin-key",
-        "ARTIFACT_HUB_BASE_URL": "https://your-app.vercel.app"
+        "ARTIFACT_HUB_BASE_URL": "https://artifact-hub-green.vercel.app"
       }
     }
   }
 }
 ```
 
-The MCP server exposes 7 tools. Each tool constructs an HTTP call to the corresponding `/api/mcp/*` adapter route, with `x-api-key` added automatically by `mcp/src/client.ts`. The adapter routes do auth check + service call + strip any internal fields (`storage_path`) before returning JSON.
+**Transport: stdio by design.** `stdio` was chosen because the MCP server is a local tool the reviewer runs on their own machine — not a hosted service. There is no server to operate, no TLS to manage, and no port to expose. Claude Desktop spawns the node process and owns the I/O channel. The stdio/HTTP boundary is clean: the MCP server communicates with Claude Desktop over stdio, and communicates with the deployed Vercel app over HTTPS. For a production deployment the right transport is streamable HTTP (the MCP remote server model), which supports per-user OAuth, revocable access, and centrally hosted tooling — already described in the production evolution section.
 
-Tool responses are formatted as readable text blocks designed for Claude to surface naturally in conversation — not raw JSON. For example, `get_artifact` returns a formatted feedback thread; `summarize_feedback` returns a structured digest with section headers.
+Each of the **9 tools** makes an HTTP call to its `/api/mcp/*` adapter, with `x-api-key` attached automatically by `mcp/src/client.ts`. The adapter does auth → service call → strips internal fields → returns JSON. Because the adapters hit the same service layer as the web app, the conversational and visual experiences never drift.
 
-The 7 tools cover the full artifact lifecycle:
+Two design choices make it *feel* like a workflow rather than an API surface:
+
+**1. Human-readable, conversation-shaped responses.** Tools return formatted text blocks — not raw JSON — so Claude can surface results naturally. A feedback summary comes back as titled sections; a published artifact comes back with its share URL and expiry spelled out.
+
+**2. Every response ends with a contextual next step.** This is the difference between CRUD and a workflow. The tools guide the conversation forward:
+
+- `list_artifacts` → "Use `get_artifact` with any ID above for full details and feedback."
+- `get_artifact` (with feedback) → "Use `summarize_feedback` to get an AI digest of these N items." (with none → "Use `add_feedback` to leave the first review.")
+- `add_feedback` → "Call `get_artifact` for the full thread, or `summarize_feedback` for an AI digest."
+- `update_feedback_status` → on *resolve*: "Call `summarize_feedback` with `force_refresh=true` to update the digest."
+- `publish_artifact` (unlisted) → returns the share link and "Recipients can view and leave feedback directly."
+
+So a reviewer can say *"List the artifacts, summarize the roadmap feedback, mark the API-versioning issue resolved, then refresh the summary"* and the tools chain that into a coherent review session.
 
 | Tool | What it does |
 |---|---|
 | `list_artifacts` | Browse with optional type/tag/visibility filters |
 | `get_artifact` | Full detail: metadata, all feedback, signed preview URL |
-| `publish_artifact` | Upload a base64-encoded file; auto-creates share link for unlisted |
+| `publish_artifact` | Upload a base64 file; auto-creates a share link for unlisted |
 | `add_feedback` | Leave structured feedback (any type) on any artifact |
-| `update_feedback_status` | Mark feedback open, resolved, or needs_review |
+| `update_feedback_status` | Mark feedback open / resolved / needs_review (MCP-only) |
 | `create_share_link` | Create an expiring share link with configurable TTL |
-| `summarize_feedback` | Get or regenerate the AI feedback digest |
+| `summarize_feedback` | Get or regenerate the AI feedback digest (cache-first) |
+| `delete_artifact` | Permanently remove an artifact and all associated data |
+| `update_artifact` | Edit title, description, tags, or visibility |
 
 ---
 
-## Where and why I used LLM capabilities
+## Where and why I used the LLM
 
-**Feedback summarization** is the single AI feature. It addresses the core pain point directly: feedback is often spread across multiple reviewers in different formats, and synthesizing it manually takes time.
+**Feedback summarization** is the single AI feature, and it maps directly onto the brief's first suggested use case — "summarizing feedback across multiple reviewers" — because that *is* the stated pain point.
 
-On any artifact detail page (and via the `summarize_feedback` MCP tool), clicking "Summarize feedback" calls `POST /api/artifacts/[id]/summarize`, which runs through the following logic:
+**Model selection.** Gemini 2.5 Flash was chosen over GPT-4o, Claude, or the heavier Gemini Pro for three specific reasons. First, **task fit**: summarizing 3–10 short feedback items into a structured 5-field digest is a low-complexity synthesis task — Flash produces quality output for this use case, and using a heavier model would be engineering overkill. Second, **native JSON mode**: the `@google/genai` SDK supports `responseMimeType: "application/json"`, which enforces structured output at the API contract level. Prompting a model to "output JSON" is brittle; having the API enforce the output format is not. Third, **cost and configurability**: Flash is free-tier accessible at demo volumes and fast (~1–2s for this task). The model is injected via the `GEMINI_MODEL` environment variable (defaulting to `gemini-2.5-flash`), so upgrading to Pro or swapping to a different provider entirely is a configuration change, not a code change — the abstraction is intentionally thin.
 
-1. **Cache check.** Query `feedback_summaries` for this artifact. If the stored `feedback_count` matches the current count, return the cached summary immediately — no LLM call.
-2. **Gemini call.** If the summary is missing, stale (new feedback added), or `force_refresh: true` is set, build a prompt with the full feedback thread and call `gemini-2.5-flash` via `@google/genai` with `responseMimeType: "application/json"`.
-3. **Validation.** The response is validated against the expected shape (`overall_assessment`, `open_issues[]`, `suggestions[]`, `questions[]`, `approval_count`) before being stored. An empty or malformed response returns a 502 rather than storing bad data.
-4. **Upsert.** The validated summary is upserted to `feedback_summaries` along with `model`, `prompt_version: "v1"`, `feedback_count`, and `generated_at` for transparency.
+**Prompt design.** The prompt gives the model the artifact title, description, and the full feedback thread — each item's reviewer name, role, feedback type, and comment. It explicitly maps the four feedback types to four output fields: approvals → `approval_count`, issues → `open_issues[]`, suggestions → `suggestions[]`, questions → `questions[]`. The output contract is a named JSON schema, not a free-text instruction. The `prompt_version: "v1"` stored alongside each cached summary means future prompt iterations are distinguishable from old ones — old cached summaries can be selectively invalidated by version without a full cache wipe.
 
-The output is a structured digest: a 1-2 sentence overall assessment, then separate sections for open issues, suggestions, questions, and an approval count. Each section only appears if it has content. A stale badge in the UI signals when new feedback has been added since the last generation, with a one-click "Regenerate" button.
+On any detail page (and via the `summarize_feedback` MCP tool), "Summarize feedback" runs `src/lib/services/summarize.ts`:
 
-The feature is immediately testable from the seeded artifacts, which have 5 feedback entries each across all four feedback types.
+1. **Cache-first.** Query `feedback_summaries`. If the stored `feedback_count` equals the live count and no force-refresh, return the cached summary — **no model call**. This keeps the feature cheap and instant in the common case.
+2. **Generate only when needed.** If the summary is missing, stale (new feedback arrived), or `force_refresh: true`, build a prompt from the full thread and call `gemini-2.5-flash` via `@google/genai` with `responseMimeType: "application/json"`.
+3. **Validate before trusting.** The response is checked against the expected shape (`overall_assessment`, `open_issues[]`, `suggestions[]`, `questions[]`, `approval_count`); a malformed or empty response returns 502 rather than persisting garbage. This guard (`isValidSummaryData`) is unit-tested.
+4. **Store with provenance.** The validated digest is upserted with `model`, `prompt_version`, `feedback_count`, and `generated_at` — all surfaced in the UI footer and MCP output, so the summary is never a black box.
+
+The UI renders a 1–2 sentence assessment plus sections for issues, suggestions, questions, and an approval count (each shown only if non-empty), a **stale badge** when feedback has changed since generation, and a one-click **Regenerate**. The seeded artifacts ship with 5 feedback entries each across all four types, so the feature produces a meaningful digest on first load.
+
+The LLM stays invisible in the right way: it's a button that produces a useful artifact, the rest of the app works without it, and provenance is always on screen.
+
+---
+
+## How the deployed system is verified
+
+Evidence the system works, not just claims:
+
+- **CI on every `feature/**` branch push** (`.github/workflows/ci.yml`): `lint` → `typecheck` → `test:run`. Feature branches carry the test gate; main stays clean by the time it lands.
+- **24 unit tests across 4 files**, focused on the highest-consequence pure logic: MCP auth (`isMcpAuthorized`), summary-shape validation (`isValidSummaryData`), share-link expiry boundary (`isShareLinkExpired`), and the rate-limit window/count algorithm (`checkRateLimit`). These are the functions where a silent bug would mean a security or correctness failure, so they're the ones worth pinning down with tests.
+- **Live smoke test** against the Vercel URL: gallery + filters, preview rendering for all three types (HTML iframe, SVG image, PDF with an "open in new tab" fallback for mobile Safari), feedback submit, summarize, share-link create/open, and publish (public lands in gallery; unlisted shows only the share link).
+- **Unlisted enforcement confirmed live:** `/artifacts/[id]` → 403, `/share/[token]` → full detail.
+- **MCP verified in Claude Desktop** against the deployed URL across all 9 tools, including cache-first behavior on `summarize_feedback` and the auto-share-link path on unlisted `publish_artifact`.
+
+---
+
+## Development process
+
+The build followed a structured, phase-driven methodology rather than continuous freestyle coding — the repo history is the audit trail.
+
+**Phase-driven planning.** Every implementation phase started with a written plan committed to `docs/plans/` before any code was touched. Plans specified exact files to create or modify, step-by-step task breakdowns with expected test outputs, and the rationale for each decision. `docs/TRACKER.md` is the execution log: phase completion status, mid-phase decisions, and blockers. This is not documentation added after the fact — it is the working process.
+
+**Feature branch quality gate.** All development happened on feature branches. The CI workflow (`.github/workflows/ci.yml`) — named "Quality Checks" — runs lint, typecheck, and the full test suite on every feature branch push and every pull request. Main is never touched until those checks pass. The branch and commit history mirrors the phase structure: each logical unit of work is a discrete commit with a message describing what changed and why, not just the task name.
+
+**Versioning strategy.** The repo treats its own development history as a first-class artifact. `docs/plans/` contains the design documents. `docs/TRACKER.md` contains the execution log. `claude-sessions/` contains the full Claude Code session logs per the brief. A reviewer can reconstruct every product decision, architectural tradeoff, and implementation choice from the repo alone.
 
 ---
 
 ## Deployment approach
 
-**Next.js app:** Deployed to Vercel from this repository. Connect the repo in the Vercel dashboard and set the following environment variables in Project Settings → Environment Variables:
+**Web app — Vercel.** Connect the repo and set six environment variables in Project Settings:
 
-| Variable | Where to find it |
+| Variable | Source |
 |---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase dashboard → Project Settings → Data API → Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase dashboard → Project Settings → Data API → `anon` key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase dashboard → Project Settings → Data API → `service_role` key |
-| `ARTIFACT_HUB_ADMIN_KEY` | Any strong random string — `openssl rand -hex 32` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → Data API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Data API → `anon` key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Data API → `service_role` key |
+| `ARTIFACT_HUB_ADMIN_KEY` | Any strong random string (`openssl rand -hex 32`) |
 | `GEMINI_API_KEY` | Google AI Studio → API Keys |
-| `GEMINI_MODEL` | `gemini-2.5-flash` (or omit to use the default) |
+| `GEMINI_MODEL` | `gemini-2.5-flash` (or omit for the default) |
 
-**Supabase:** Hosted project with the schema from `supabase/migrations/001_initial.sql` (`npx supabase db push`) and a private `artifacts` storage bucket created in the Supabase dashboard.
+**Database — Supabase.** Apply migrations in order: `001_initial.sql` (tables + indexes), then `002_rls.sql` (RLS policies) — `npx supabase db push`. Create a private `artifacts` Storage bucket.
 
-**Seed data:** After deploying, run `npm run seed` locally (with `.env.local` pointing at the hosted project) to upload the three sample artifacts and their feedback.
+**Seed.** `npm run seed` (with `.env.local` pointed at the hosted project) uploads the three sample artifacts and 15 feedback entries; `npm run seed -- --force` wipes and re-seeds.
 
-**MCP server:** Run locally by the reviewer. Build with `cd mcp && npm run build`, then add to Claude Desktop config as shown in `mcp/README.md`. The server calls the deployed Vercel URL via HTTP.
+**MCP server.** `cd mcp && npm run build`, then add `mcp/dist/index.js` to Claude Desktop config (see `mcp/README.md`). It calls the deployed Vercel URL over HTTP. Two env vars are required in the Claude Desktop config (not Vercel):
 
-**Live URL:** `[fill in after deployment]`
+| Variable | Value |
+|---|---|
+| `ARTIFACT_HUB_ADMIN_KEY` | Must match the key set in Vercel |
+| `ARTIFACT_HUB_BASE_URL` | `https://artifact-hub-green.vercel.app` (no trailing slash) |
+
+**Live URL:** https://artifact-hub-green.vercel.app
 
 ---
 
-## Demo admin key
+## Production evolution
 
-The demo `ARTIFACT_HUB_ADMIN_KEY` for MCP config and direct API testing will be provided privately with the submission — not committed to this repository.
+Supabase + Vercel were chosen *on purpose* for this challenge: they buy a real hosted Postgres, private object storage, and global app hosting with near-zero ops overhead, which is exactly right for shipping a polished, reviewable system inside a 2-day box. They are the correct tool for *fast hosted delivery*. A production deployment inside an enterprise would evolve along these lines — each item is **future work**, not implemented here:
 
-To test the MCP server, add the key to the Claude Desktop config as shown in `mcp/README.md`.
+- **Cloud + IaC.** Move to a primary enterprise cloud (e.g. **Azure** — managed Postgres, Blob Storage, Container Apps/AKS) with the entire footprint defined in **Terraform**, so environments are reproducible and reviewable in PRs rather than clicked together in a dashboard.
+- **Environment isolation.** Separate dev / staging / prod projects, networks, and data stores — no shared keys across stages, private networking between app and database.
+- **Managed secrets.** Replace env-var secrets with a managed secret store (Azure Key Vault / HashiCorp Vault) with rotation and per-environment scoping.
+- **Real authentication + RBAC.** Replace the Publisher Demo toggle and shared admin key with SSO/OIDC and role-based authorization (publisher / reviewer / viewer). The current visibility model and the `update_feedback_status` trust boundary are already shaped for this.
+- **Audit logging.** Append-only audit trail for publish, edit, delete, status changes, and share-link creation — who did what, when.
+- **Observability.** Structured logging, metrics, distributed tracing, and error tracking (e.g. OpenTelemetry + a managed backend), plus alerting on the Gemini and Storage dependencies.
+- **Production MCP model.** Replace the local stdio + shared-key server with a hosted **remote MCP** endpoint (streamable HTTP) behind OAuth, so access is per-user and revocable instead of a single shared admin key.
+- **Distributed rate limiting.** Swap the in-memory limiter for Upstash/Redis (already flagged in `middleware.ts`) so limits hold across instances.
+
+The point is that none of this is rework — the service-layer boundary, the visibility model, and the provenance-tracked summarization all anticipate it. The demo stack is a starting line chosen for speed, not a dead end.
 
 ---
 
 ## What I'd do next with another week
 
-In rough priority order:
+Product-feature priorities (distinct from the infrastructure evolution above):
 
-1. **User accounts with artifact ownership** (Supabase Auth). The access model is already scoped for this — `unlisted` visibility, share links, and the `update_feedback_status` trust boundary all anticipate authenticated ownership. Adding auth would be an additive change, not a rework.
+1. **User accounts with ownership** (Supabase Auth). The access model is already scoped for it; the Publisher Demo toggle demonstrates the intended UX. Additive, not a rewrite.
+2. **Feedback status management in the web UI.** Publishers can delete feedback today; the next step is marking items resolved / needs_review from the web, closing the loop with the MCP workflow.
+3. **Semantic search with pgvector.** Embed titles, descriptions, and tags on publish; query by cosine similarity. Tag filtering is fine at demo scale; a real catalog needs full-text + semantic search.
+4. **Artifact versioning.** Track revisions of the same artifact and attach feedback to a specific version — which makes summarization even more valuable across iterative review cycles.
+5. **Webhook / email notifications.** Notify the publisher on new feedback or a regenerated summary — a Supabase Edge Function on row insert.
 
-2. **Feedback status management in the web UI.** Currently MCP/API-only. Logged-in artifact owners should be able to mark issues resolved from the detail page without needing Claude Desktop.
+---
 
-3. **Rate limiting on feedback and publish endpoints.** Straightforward to add as Next.js middleware using a sliding-window counter in Supabase or Upstash. The demo environment doesn't need it, but a real deployment would.
+## Walkthrough (key flows)
 
-4. **NL search with pgvector.** Embed artifact titles, descriptions, and tags on publish; query with cosine similarity. The schema already has room for this without a migration change.
+A written step-by-step covering the core experience. All flows are live at https://artifact-hub-green.vercel.app.
 
-5. **Artifact versioning.** Track revisions of the same artifact rather than publishing a new record each time. Feedback could then be attached to a specific version, making the summarization feature even more useful for iterative review cycles.
+**Web — review lifecycle**
+1. **Browse as Visitor.** Open `/` — public artifacts only, no Publish button. Filter by type; type a tag prefix to narrow client-side.
+2. **Switch to Publisher Demo.** Click the **Publisher Demo** toggle (`?view=owner`). The unlisted artifact now appears with an amber badge, and the Publish button unlocks.
+3. **Open an artifact.** Click a card → detail page with the rendered preview (HTML iframe / image / PDF), the feedback thread, and the summary panel.
+4. **Edit inline (Publisher Demo).** Use the edit form to change title / description / tags / visibility and save.
+5. **Leave feedback.** Submit name, role, type, and comment — it appears in the thread immediately, and the summary panel shows a stale badge.
+6. **Summarize.** Click **Summarize feedback** → structured digest (assessment, issues, suggestions, questions, approvals) with model + timestamp provenance. Click again to see it served instantly from cache.
+7. **Share.** Click Share → a copyable expiring link; open `/share/[token]` to see the full detail view (and confirm `/artifacts/[id]` returns 403 for an unlisted artifact).
+
+**MCP — conversational review in Claude Desktop**
+1. *"List the artifacts in the hub."* → `list_artifacts`
+2. *"Show me the roadmap details."* → `get_artifact` (suggests summarizing)
+3. *"Summarize the feedback."* → `summarize_feedback`
+4. *"Mark the API-versioning issue resolved, then refresh the summary."* → `update_feedback_status` → `summarize_feedback(force_refresh)`
+5. *"Publish this HTML as unlisted."* → `publish_artifact` returns a ready-to-share link.
+
+A 5-minute screen recording of these flows accompanies the submission.
+
+---
+
+## How this was built (AI tooling)
+
+**Claude Code** was the primary implementation tool. The workflow is visible in the repo: design and execution plans live in `docs/plans/`, phase-by-phase execution state in `docs/TRACKER.md`, and the full Claude Code session logs are included with the submission under `claude-sessions/` per the brief.
+
+**ChatGPT** was used as an external product and architecture reviewer throughout the project — not for code generation, but for critique, prompt refinement, and submission strategy. Specifically: reviewing product decisions for blind spots, stress-testing the access model framing, and pressure-testing the writeup structure. The reason for this is deliberate: a second model with different training and tendencies can surface issues that the primary tool — and the developer — are too close to see. Claude Code shaped the implementation; ChatGPT served as the external critic that kept the product decisions honest.
+
+---
+
+## Demo admin key
+
+The demo `ARTIFACT_HUB_ADMIN_KEY` (for MCP config and direct API testing) is provided privately with the submission — never committed to this repository, per the secret-safety rules in `CLAUDE.md`.

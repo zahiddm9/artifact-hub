@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Layers, FileText, Image, Code } from "lucide-react";
 import { ArtifactCard } from "./ArtifactCard";
+import { DeleteCardButton } from "./DeleteCardButton";
 import type { Artifact, ArtifactType } from "@/types";
 
 /*
@@ -42,9 +43,10 @@ const TYPES: { value: ArtifactType | ""; label: string; icon: typeof Layers }[] 
 
 interface Props {
   artifacts: Artifact[];
+  isOwnerView?: boolean;
 }
 
-export function GalleryFilter({ artifacts }: Props) {
+export function GalleryFilter({ artifacts, isOwnerView = false }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -83,7 +85,8 @@ export function GalleryFilter({ artifacts }: Props) {
 
   function clearAll() {
     setTagInput("");
-    router.push(pathname);
+    const currentView = searchParams.get("view");
+    router.push(currentView ? `${pathname}?view=${currentView}` : pathname);
   }
 
   return (
@@ -175,10 +178,11 @@ export function GalleryFilter({ artifacts }: Props) {
           {filteredArtifacts.map((artifact, index) => (
             <div
               key={artifact.id}
-              className="animate-fade-in-up"
+              className="relative animate-fade-in-up"
               style={{ animationDelay: `${index * 50}ms` }}
             >
-              <ArtifactCard artifact={artifact} />
+              <ArtifactCard artifact={artifact} isOwnerView={isOwnerView} />
+              {isOwnerView && <DeleteCardButton artifactId={artifact.id} />}
             </div>
           ))}
         </div>

@@ -8,24 +8,31 @@ const TYPE_CONFIG: Record<string, { icon: typeof FileText; label: string; cls: s
   html:  { icon: Code,     label: "HTML",  cls: "bg-violet-500/20 text-violet-400 border-violet-500/30" },
 };
 
-export function ArtifactCard({ artifact }: { artifact: Artifact }) {
+export function ArtifactCard({ artifact, isOwnerView = false }: { artifact: Artifact; isOwnerView?: boolean }) {
   const config = TYPE_CONFIG[artifact.type] ?? { icon: FileText, label: artifact.type.toUpperCase(), cls: "bg-secondary text-muted-foreground border-border" };
   const { icon: TypeIcon, label, cls } = config;
 
   return (
     <Link
-      href={`/artifacts/${artifact.id}`}
+      href={`/artifacts/${artifact.id}${isOwnerView ? "?view=owner" : ""}`}
       className="group relative flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-300 ease-out hover:border-primary/30 hover:bg-card/80 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 card-glow"
     >
-      {/* Title + badge */}
+      {/* Title + badges */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <h3 className="font-semibold text-card-foreground text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors">
           {artifact.title}
         </h3>
-        <span className={`shrink-0 flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium transition-all duration-200 ${cls}`}>
-          <TypeIcon className="h-3 w-3" />
-          {label}
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <span className={`flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium transition-all duration-200 ${cls}`}>
+            <TypeIcon className="h-3 w-3" />
+            {label}
+          </span>
+          {artifact.visibility === "unlisted" && (
+            <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+              Unlisted
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Description */}

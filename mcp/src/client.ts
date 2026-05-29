@@ -32,3 +32,7 @@ export function post(path: string, body: unknown): Promise<unknown> {
 export function patch(path: string, body: unknown): Promise<unknown> {
   return request(path, { method: "PATCH", body: JSON.stringify(body) });
 }
+
+export function del(path: string): Promise<unknown> {
+  return request(path, { method: "DELETE" });
+}

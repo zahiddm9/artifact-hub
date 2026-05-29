@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMcpAuth } from "@/lib/auth";
-import { getArtifact } from "@/lib/services/artifacts";
+import { getArtifact, deleteArtifact, updateArtifact } from "@/lib/services/artifacts";
 import { listFeedback } from "@/lib/services/feedback";
 import { getPublicArtifactUrl } from "@/lib/storage";
+import type { UpdateArtifactBody } from "@/types";
 
 export async function GET(
   request: NextRequest,
@@ -36,4 +37,31 @@ export async function GET(
   const feedbackError = feedbackResult.ok ? null : feedbackResult.message;
 
   return NextResponse.json({ artifact: publicArtifact, feedback, feedbackError, signedUrl });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const authError = requireMcpAuth(request);
+  if (authError) return authError;
+
+  const { id } = await params;
+  const result = await deleteArtifact(id);
+  if (!result.ok) return NextResponse.json({ error: result.message }, { status: result.status });
+  return NextResponse.json({ deleted: true });
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const authError = requireMcpAuth(request);
+  if (authError) return authError;
+
+  const { id } = await params;
+  const body = (await request.json()) as UpdateArtifactBody;
+  const result = await updateArtifact(id, body);
+  if (!result.ok) return NextResponse.json({ error: result.message }, { status: result.status });
+  return NextResponse.json(result.data);
 }

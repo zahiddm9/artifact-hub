@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase";
 import { uploadArtifact } from "@/lib/storage";
-import type { Artifact, ArtifactType, ArtifactVisibility, CreateArtifactBody, ServiceResult } from "@/types";
+import type { Artifact, ArtifactPublic, ArtifactType, ArtifactVisibility, CreateArtifactBody, UpdateArtifactBody, ServiceResult } from "@/types";
 
 export async function listArtifacts({
   type,
@@ -72,4 +72,64 @@ export async function createArtifact(body: CreateArtifactBody): Promise<ServiceR
 
   if (error) return { ok: false, status: 500, message: error.message };
   return { ok: true, data: data as Artifact };
+}
+
+export async function deleteArtifact(id: string): Promise<ServiceResult<void>> {
+  const supabase = createAdminClient();
+
+  const { data: artifact, error: fetchErr } = await supabase
+    .from("artifacts")
+    .select("storage_path")
+    .eq("id", id)
+    .single();
+
+  if (fetchErr) {
+    if (fetchErr.code === "PGRST116") return { ok: false, status: 404, message: "Artifact not found" };
+    return { ok: false, status: 500, message: fetchErr.message };
+  }
+
+  const { error: storageErr } = await supabase.storage
+    .from("artifacts")
+    .remove([artifact.storage_path]);
+
+  if (storageErr) return { ok: false, status: 500, message: `Storage delete failed: ${storageErr.message}` };
+
+  const { error: deleteErr } = await supabase
+    .from("artifacts")
+    .delete()
+    .eq("id", id);
+
+  if (deleteErr) return { ok: false, status: 500, message: deleteErr.message };
+  return { ok: true, data: undefined };
+}
+
+export async function updateArtifact(
+  id: string,
+  body: UpdateArtifactBody
+): Promise<ServiceResult<ArtifactPublic>> {
+  const supabase = createAdminClient();
+
+  const updates: Record<string, unknown> = {};
+  if (body.title !== undefined) updates.title = body.title;
+  if ("description" in body) updates.description = body.description ?? null;
+  if (body.tags !== undefined) updates.tags = body.tags;
+  if (body.visibility !== undefined) updates.visibility = body.visibility;
+
+  if (Object.keys(updates).length === 0) {
+    return { ok: false, status: 400, message: "No fields to update" };
+  }
+
+  const { data, error } = await supabase
+    .from("artifacts")
+    .update(updates)
+    .eq("id", id)
+    .select("id, title, description, tags, type, mime_type, visibility, file_size, original_filename, created_at")
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return { ok: false, status: 404, message: "Artifact not found" };
+    return { ok: false, status: 500, message: error.message };
+  }
+
+  return { ok: true, data: data as ArtifactPublic };
 }

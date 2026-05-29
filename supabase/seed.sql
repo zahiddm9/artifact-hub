@@ -1,9 +1,0 @@
--- Artifact Hub seed data
---
--- Artifacts reference storage paths generated at upload time, so they cannot
--- be inserted via this file. The full seed (file uploads + DB inserts) is
--- handled by the seed script:
---
---   node supabase/seed.mjs
---
--- Run that after `npx supabase db push` (or `npx supabase db reset --linked`).

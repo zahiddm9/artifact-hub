@@ -32,6 +32,7 @@ interface SuccessState {
   visibility: ArtifactVisibility;
   artifactId: string;
   shareToken?: string;
+  shareError?: string;
 }
 
 export function PublishForm() {
@@ -90,6 +91,7 @@ export function PublishForm() {
         visibility,
         artifactId: data.artifact.id,
         shareToken: data.shareLink?.token,
+        shareError: data.shareError,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -113,9 +115,13 @@ export function PublishForm() {
       ? `${window.location.origin}/share/${success.shareToken}`
       : null;
 
+    const isShareError = success.visibility === "unlisted" && !shareUrl;
+
     return (
-      <div className="rounded-xl border border-green-200 bg-green-50 p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-green-900">Artifact published!</h2>
+      <div className={`rounded-xl border p-6 space-y-4 ${isShareError ? "border-amber-200 bg-amber-50" : "border-green-200 bg-green-50"}`}>
+        <h2 className={`text-lg font-semibold ${isShareError ? "text-amber-900" : "text-green-900"}`}>
+          {isShareError ? "Artifact saved — action required" : "Artifact published!"}
+        </h2>
 
         {success.visibility === "unlisted" && shareUrl ? (
           <div className="space-y-2">
@@ -137,6 +143,18 @@ export function PublishForm() {
                 Copy
               </button>
             </div>
+          </div>
+        ) : isShareError ? (
+          <div className="space-y-2">
+            <p className="text-sm text-amber-800">
+              Your artifact was saved but the share link could not be created.
+            </p>
+            <p className="text-xs font-mono text-muted-foreground break-all">
+              Artifact ID: {success.artifactId}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Use the MCP <code>create_share_link</code> tool with this ID to generate an access link.
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
