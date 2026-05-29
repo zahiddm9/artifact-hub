@@ -42,7 +42,7 @@ export function registerShareTools(server: McpServer): void {
       return {
         content: [{
           type: "text" as const,
-          text: `Share link created.\n\nURL: ${shareUrl}\nExpires: ${expiresDate}`,
+          text: `Share link created.\n\nURL: ${shareUrl}\nExpires: ${expiresDate}\n\nAnyone with this link can view the artifact and leave feedback directly — no key required.`,
         }],
       };
     }

@@ -55,7 +55,7 @@ export function registerPublishTools(server: McpServer): void {
         return {
           content: [{
             type: "text" as const,
-            text: `Artifact published: "${artifact.title}"\nID: ${artifact.id} | Type: ${artifact.type.toUpperCase()} | Visibility: unlisted\n\nShare link (expires ${expires}):\n${shareUrl}`,
+            text: `Artifact published: "${artifact.title}"\nID: ${artifact.id} | Type: ${artifact.type.toUpperCase()} | Visibility: unlisted\n\nShare link (expires ${expires}):\n${shareUrl}\n\n→ Share the link above. Recipients can view the artifact and leave feedback directly.`,
           }],
         };
       }
@@ -72,7 +72,7 @@ export function registerPublishTools(server: McpServer): void {
       return {
         content: [{
           type: "text" as const,
-          text: `Artifact published: "${artifact.title}"\nID: ${artifact.id} | Type: ${artifact.type.toUpperCase()} | Visibility: public\n\nURL: ${baseUrl}/artifacts/${artifact.id}`,
+          text: `Artifact published: "${artifact.title}"\nID: ${artifact.id} | Type: ${artifact.type.toUpperCase()} | Visibility: public\n\nURL: ${baseUrl}/artifacts/${artifact.id}\n\n→ Use add_feedback to start the review, or create_share_link to generate a controlled-access link.`,
         }],
       };
     }

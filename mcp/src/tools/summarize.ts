@@ -41,6 +41,9 @@ export function registerSummarizeTools(server: McpServer): void {
       const s = data.summary.summary;
       const meta = `Generated from ${data.feedbackCount} feedback item${data.feedbackCount === 1 ? "" : "s"}`;
       const modelTag = data.summary.model ? ` · ${data.summary.model}` : "";
+      const genDate = data.summary.generated_at
+        ? ` · ${new Date(data.summary.generated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+        : "";
 
       const issueLines =
         s.open_issues.length > 0
@@ -58,7 +61,7 @@ export function registerSummarizeTools(server: McpServer): void {
 
       const text = [
         "Feedback Summary",
-        `${meta}${modelTag}`,
+        `${meta}${modelTag}${genDate}`,
         "",
         "Overall Assessment:",
         s.overall_assessment,

@@ -71,7 +71,7 @@ export function registerArtifactTools(server: McpServer): void {
       return {
         content: [{
           type: "text" as const,
-          text: `Found ${data.length} artifact${data.length === 1 ? "" : "s"}.\n\n${lines.join("\n\n")}`,
+          text: `Found ${data.length} artifact${data.length === 1 ? "" : "s"}.\n\n${lines.join("\n\n")}\n\n→ Use get_artifact with any ID above for full details and feedback.`,
         }],
       };
     }
@@ -124,7 +124,13 @@ export function registerArtifactTools(server: McpServer): void {
         feedbackBlock,
       ].join("\n");
 
-      return { content: [{ type: "text" as const, text }] };
+      const nextStep = feedbackError
+        ? ""
+        : feedback.length === 0
+          ? "\n\n→ No feedback yet. Use add_feedback to leave the first review."
+          : `\n\n→ Use summarize_feedback to get an AI digest of these ${feedback.length} feedback item${feedback.length === 1 ? "" : "s"}.`;
+
+      return { content: [{ type: "text" as const, text: text + nextStep }] };
     }
   );
 }

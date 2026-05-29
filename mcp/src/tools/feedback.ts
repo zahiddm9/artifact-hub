@@ -39,7 +39,7 @@ export function registerFeedbackTools(server: McpServer): void {
       return {
         content: [{
           type: "text" as const,
-          text: `Feedback added.\nID: ${data.id}\nType: ${data.feedback_type} | Status: ${data.status}\nReviewer: ${data.reviewer_name}${role}\nComment: "${data.comment}"`,
+          text: `Feedback added.\nID: ${data.id}\nType: ${data.feedback_type} | Status: ${data.status}\nReviewer: ${data.reviewer_name}${role}\nComment: "${data.comment}"\n\n→ Call get_artifact for the full thread, or summarize_feedback for an AI digest.`,
         }],
       };
     }
@@ -60,10 +60,17 @@ export function registerFeedbackTools(server: McpServer): void {
         status,
       })) as FeedbackItem;
 
+      const statusHint =
+        data.status === "resolved"
+          ? "\n\n→ Issue marked resolved. Call summarize_feedback with force_refresh=true to update the digest."
+          : data.status === "needs_review"
+          ? "\n\n→ Status set to needs_review. Call get_artifact to see the full thread."
+          : "";
+
       return {
         content: [{
           type: "text" as const,
-          text: `Feedback status updated.\nID: ${data.id} | Status: ${data.status}`,
+          text: `Feedback status updated.\nID: ${data.id} | Status: ${data.status}${statusHint}`,
         }],
       };
     }
