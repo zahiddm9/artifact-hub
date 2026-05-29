@@ -45,7 +45,7 @@ export default async function GalleryPage({ searchParams }: Props) {
       <main className="mx-auto max-w-6xl px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">Gallery</h1>
-          <p className="text-muted-foreground">Browse and manage your generated artifacts</p>
+          <p className="text-muted-foreground">Browse, review, and share AI-generated content</p>
         </div>
 
         <Suspense fallback={null}>

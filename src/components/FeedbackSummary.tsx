@@ -111,6 +111,9 @@ export function FeedbackSummary({ artifactId, initialSummary, feedbackCount }: P
           <p className="text-xs text-muted-foreground">
             Generated from {summary.feedback_count} feedback item{summary.feedback_count === 1 ? "" : "s"}
             {summary.model ? ` · ${summary.model}` : ""}
+            {summary.generated_at
+              ? ` · ${new Date(summary.generated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+              : ""}
           </p>
         </div>
       )}
