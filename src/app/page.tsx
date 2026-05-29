@@ -42,7 +42,7 @@ export default async function GalleryPage({ searchParams }: Props) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Header showPublish={isOwnerView} />
 
       <main className="mx-auto max-w-6xl px-6 py-8">
         <div className="mb-8">
@@ -76,7 +76,7 @@ export default async function GalleryPage({ searchParams }: Props) {
 
         {isOwnerView && (
           <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Owner view — unlisted artifacts are visible here. Visitors browsing the gallery see only public artifacts.
+            Owner view — you can see and publish all artifacts including unlisted. In visitor view, the gallery is read-only and shows only public artifacts.
           </div>
         )}
 

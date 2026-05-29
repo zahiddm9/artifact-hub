@@ -5,9 +5,10 @@ import { ThemeSwitcher } from "./ThemeSwitcher";
 interface HeaderProps {
   backHref?: string;
   backLabel?: string;
+  showPublish?: boolean;
 }
 
-export function Header({ backHref, backLabel }: HeaderProps) {
+export function Header({ backHref, backLabel, showPublish = true }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto max-w-6xl px-6">
@@ -33,14 +34,14 @@ export function Header({ backHref, backLabel }: HeaderProps) {
               >
                 {backLabel ?? "← Back"}
               </Link>
-            ) : (
+            ) : showPublish ? (
               <Link
                 href="/publish"
                 className="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 Publish
               </Link>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
