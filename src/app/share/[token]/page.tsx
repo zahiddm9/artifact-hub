@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { validateShareLink } from "@/lib/services/share";
 import { listFeedback } from "@/lib/services/feedback";
 import { getCachedSummary } from "@/lib/services/summarize";
@@ -7,6 +6,8 @@ import { ArtifactPreview } from "@/components/ArtifactPreview";
 import { FeedbackList } from "@/components/FeedbackList";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { FeedbackSummary } from "@/components/FeedbackSummary";
+import { Header } from "@/components/Header";
+import Link from "next/link";
 
 interface Props {
   params: Promise<{ token: string }>;
@@ -18,17 +19,17 @@ export default async function SharePage({ params }: Props) {
 
   if (!result.ok) {
     return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center max-w-sm">
-          <h1 className="text-2xl font-bold text-zinc-900">
+          <h1 className="text-2xl font-bold text-foreground">
             {result.status === 410 ? "Link expired" : "Link not found"}
           </h1>
-          <p className="mt-2 text-zinc-500">
+          <p className="mt-2 text-muted-foreground">
             {result.status === 410
               ? "This share link has expired and can no longer be used."
               : "This share link is invalid or has been removed."}
           </p>
-          <Link href="/" className="mt-4 inline-block text-sm text-zinc-600 underline hover:text-zinc-900">
+          <Link href="/" className="mt-4 inline-block text-sm text-primary transition-colors hover:text-primary/80">
             Browse gallery
           </Link>
         </div>
@@ -49,15 +50,8 @@ export default async function SharePage({ params }: Props) {
   const isExpiringSoon = (expiresDate.getTime() - Date.now()) / 3_600_000 < 24;
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur">
-        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 py-4">
-          <Link href="/" className="text-lg font-bold text-zinc-900 transition-colors duration-150 hover:text-zinc-600">
-            Artifact Hub
-          </Link>
-          <span className="text-sm text-zinc-400">Shared artifact</span>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background">
+      <Header />
 
       <main className="mx-auto max-w-4xl px-6 py-8 space-y-6">
         {isExpiringSoon && (
@@ -69,14 +63,14 @@ export default async function SharePage({ params }: Props) {
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">{artifact.title}</h1>
-          {artifact.description && <p className="mt-1 text-zinc-600">{artifact.description}</p>}
+          <h1 className="text-2xl font-bold text-foreground">{artifact.title}</h1>
+          {artifact.description && <p className="mt-1 text-muted-foreground">{artifact.description}</p>}
           {artifact.tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {artifact.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs text-zinc-600"
+                  className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs text-muted-foreground"
                 >
                   {tag}
                 </span>
@@ -89,7 +83,7 @@ export default async function SharePage({ params }: Props) {
         {signedUrl ? (
           <ArtifactPreview type={artifact.type} signedUrl={signedUrl} title={artifact.title} />
         ) : (
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-8 text-center text-zinc-500">
+          <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
             Preview unavailable.
           </div>
         )}
@@ -103,7 +97,7 @@ export default async function SharePage({ params }: Props) {
 
         {/* Feedback */}
         <section className="space-y-3">
-          <h2 className="font-semibold text-zinc-900">
+          <h2 className="font-semibold text-foreground">
             Feedback{feedback.length > 0 ? ` (${feedback.length})` : ""}
           </h2>
           <FeedbackList feedback={feedback} />

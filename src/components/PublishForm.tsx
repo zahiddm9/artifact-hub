@@ -122,17 +122,17 @@ export function PublishForm() {
             <p className="text-sm text-green-800">
               This artifact is unlisted — this link is the only way to access it.
             </p>
-            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-white px-3 py-2">
+            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-card px-3 py-2">
               <input
                 type="text"
                 readOnly
                 value={shareUrl}
-                className="flex-1 bg-transparent text-sm text-zinc-700 focus:outline-none"
+                className="flex-1 bg-transparent text-sm text-foreground focus:outline-none"
                 onClick={(e) => (e.target as HTMLInputElement).select()}
               />
               <button
                 onClick={() => navigator.clipboard.writeText(shareUrl)}
-                className="shrink-0 text-xs text-zinc-500 transition-colors duration-150 hover:text-zinc-900"
+                className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
                 Copy
               </button>
@@ -144,13 +144,13 @@ export function PublishForm() {
             <div className="flex gap-3">
               <Link
                 href={`/artifacts/${success.artifactId}`}
-                className="inline-flex items-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-violet-700"
+                className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 View artifact
               </Link>
               <Link
                 href="/"
-                className="inline-flex items-center rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors duration-150 hover:bg-zinc-50"
+                className="inline-flex items-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
               >
                 Back to gallery
               </Link>
@@ -158,7 +158,7 @@ export function PublishForm() {
           </div>
         )}
 
-        <button onClick={reset} className="text-sm text-zinc-500 transition-colors duration-150 hover:text-zinc-900 underline">
+        <button onClick={reset} className="text-sm text-muted-foreground transition-colors hover:text-foreground underline">
           Publish another
         </button>
       </div>
@@ -168,7 +168,7 @@ export function PublishForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label className="block text-sm font-medium text-zinc-900 mb-1">
+        <label className="block text-sm font-medium text-foreground mb-1">
           File <span className="text-red-500">*</span>
         </label>
         <input
@@ -176,13 +176,13 @@ export function PublishForm() {
           type="file"
           accept=".pdf,.html,.htm,image/*"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="block w-full text-sm text-zinc-500 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white file:transition-colors file:duration-150 hover:file:bg-violet-700 cursor-pointer"
+          className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground file:transition-colors hover:file:bg-primary/90 cursor-pointer"
         />
-        <p className="mt-1 text-xs text-zinc-400">PDF, image (PNG / JPG / GIF / WebP), or HTML file</p>
+        <p className="mt-1 text-xs text-muted-foreground">PDF, image (PNG / JPG / GIF / WebP), or HTML file</p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-zinc-900 mb-1">
+        <label className="block text-sm font-medium text-foreground mb-1">
           Title <span className="text-red-500">*</span>
         </label>
         <input
@@ -190,35 +190,35 @@ export function PublishForm() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Q1 2026 Report"
-          className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
+          className="block w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-zinc-900 mb-1">Description</label>
+        <label className="block text-sm font-medium text-foreground mb-1">Description</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
           placeholder="Brief description…"
-          className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-600 resize-none"
+          className="block w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-zinc-900 mb-1">Tags</label>
+        <label className="block text-sm font-medium text-foreground mb-1">Tags</label>
         <input
           type="text"
           value={tags}
           onChange={(e) => setTags(e.target.value)}
           placeholder="design, q1-2026, marketing"
-          className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
+          className="block w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
-        <p className="mt-1 text-xs text-zinc-400">Comma-separated</p>
+        <p className="mt-1 text-xs text-muted-foreground">Comma-separated</p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-zinc-900 mb-2">Visibility</label>
+        <label className="block text-sm font-medium text-foreground mb-2">Visibility</label>
         <div className="flex gap-4">
           {(["public", "unlisted"] as ArtifactVisibility[]).map((v) => (
             <label key={v} className="flex items-center gap-2 cursor-pointer">
@@ -228,23 +228,23 @@ export function PublishForm() {
                 value={v}
                 checked={visibility === v}
                 onChange={() => setVisibility(v)}
-                className="accent-violet-600"
+                className="accent-primary"
               />
-              <span className="text-sm text-zinc-700 capitalize">{v}</span>
+              <span className="text-sm text-foreground capitalize">{v}</span>
               {v === "unlisted" && (
-                <span className="text-xs text-zinc-400">(share link only)</span>
+                <span className="text-xs text-muted-foreground">(share link only)</span>
               )}
             </label>
           ))}
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-500">{error}</p>}
 
       <button
         type="submit"
         disabled={uploading}
-        className="w-full rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-violet-700 disabled:opacity-50"
+        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >
         {uploading ? "Publishing…" : "Publish artifact"}
       </button>

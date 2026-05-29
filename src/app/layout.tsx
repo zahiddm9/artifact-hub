@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,6 +18,15 @@ export const metadata: Metadata = {
   description: "Publish, browse, review, and share AI-generated content",
 };
 
+const themeScript = `
+(function() {
+  var theme = localStorage.getItem('artifact-hub-theme') || 'theme-saas';
+  var valid = ['theme-saas','theme-creative','theme-docs','theme-premium'];
+  if (valid.indexOf(theme) === -1) theme = 'theme-saas';
+  document.documentElement.classList.add(theme);
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,9 +36,15 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

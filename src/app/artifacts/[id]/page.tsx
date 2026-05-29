@@ -9,6 +9,7 @@ import { ShareButton } from "@/components/ShareButton";
 import { FeedbackList } from "@/components/FeedbackList";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { FeedbackSummary } from "@/components/FeedbackSummary";
+import { Header } from "@/components/Header";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -21,8 +22,8 @@ export default async function ArtifactDetailPage({ params }: Props) {
   if (!result.ok) {
     if (result.status === 404) notFound();
     return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-        <p className="text-zinc-500">Error loading artifact.</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Error loading artifact.</p>
       </div>
     );
   }
@@ -31,13 +32,13 @@ export default async function ArtifactDetailPage({ params }: Props) {
 
   if (artifact.visibility === "unlisted") {
     return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center max-w-sm">
-          <h1 className="text-2xl font-bold text-zinc-900">Not available</h1>
-          <p className="mt-2 text-zinc-500">
+          <h1 className="text-2xl font-bold text-foreground">Not available</h1>
+          <p className="mt-2 text-muted-foreground">
             This artifact requires a share link to access.
           </p>
-          <Link href="/" className="mt-4 inline-block text-sm text-zinc-600 underline transition-colors duration-150 hover:text-zinc-900">
+          <Link href="/" className="mt-4 inline-block text-sm text-primary transition-colors hover:text-primary/80">
             Back to gallery
           </Link>
         </div>
@@ -55,36 +56,27 @@ export default async function ArtifactDetailPage({ params }: Props) {
   const TYPE_LABELS: Record<string, string> = { pdf: "PDF", image: "Image", html: "HTML" };
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur">
-        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 py-4">
-          <Link href="/" className="text-lg font-bold text-zinc-900 transition-colors duration-150 hover:text-zinc-600">
-            Artifact Hub
-          </Link>
-          <Link href="/" className="text-sm text-zinc-500 transition-colors duration-150 hover:text-zinc-900">
-            ← Gallery
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background">
+      <Header backHref="/" backLabel="← Gallery" />
 
       <main className="mx-auto max-w-4xl px-6 py-8 space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl font-bold text-zinc-900">{artifact.title}</h1>
-              <span className="shrink-0 inline-flex items-center rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+              <h1 className="text-2xl font-bold text-foreground">{artifact.title}</h1>
+              <span className="shrink-0 inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
                 {TYPE_LABELS[artifact.type] ?? artifact.type}
               </span>
             </div>
-            {artifact.description && <p className="text-zinc-600">{artifact.description}</p>}
+            {artifact.description && <p className="text-muted-foreground">{artifact.description}</p>}
             {artifact.tags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
                 {artifact.tags.map((tag) => (
                   <Link
                     key={tag}
                     href={`/?tag=${encodeURIComponent(tag)}`}
-                    className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs text-zinc-600 transition-colors duration-150 hover:bg-zinc-200"
+                    className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
                   >
                     {tag}
                   </Link>
@@ -99,12 +91,12 @@ export default async function ArtifactDetailPage({ params }: Props) {
         {signedUrlResult ? (
           <ArtifactPreview type={artifact.type} signedUrl={signedUrlResult} title={artifact.title} />
         ) : (
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-8 text-center text-zinc-500">
+          <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
             Preview unavailable.
           </div>
         )}
 
-        {/* Feedback summary — only renders when there is feedback */}
+        {/* Feedback summary */}
         <FeedbackSummary
           artifactId={artifact.id}
           initialSummary={cachedSummary}
@@ -113,14 +105,14 @@ export default async function ArtifactDetailPage({ params }: Props) {
 
         {/* Feedback section */}
         <section className="space-y-3">
-          <h2 className="font-semibold text-zinc-900">
+          <h2 className="font-semibold text-foreground">
             Feedback{feedback.length > 0 ? ` (${feedback.length})` : ""}
           </h2>
           <FeedbackList feedback={feedback} />
           <FeedbackForm artifactId={artifact.id} />
         </section>
 
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs text-muted-foreground">
           Published{" "}
           {new Date(artifact.created_at).toLocaleDateString("en-US", {
             month: "long",

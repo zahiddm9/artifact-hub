@@ -47,7 +47,6 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
       }
 
       setSubmitted(true);
-      // Re-render server components to show the new feedback
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -62,7 +61,7 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
         Feedback submitted. Thank you!{" "}
         <button
           onClick={() => { setSubmitted(false); setName(""); setRole(""); setComment(""); }}
-          className="underline transition-colors duration-150 hover:text-green-900"
+          className="underline transition-colors hover:text-green-900"
         >
           Add another
         </button>
@@ -71,12 +70,12 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
-      <h3 className="font-semibold text-zinc-900">Leave feedback</h3>
+    <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <h3 className="font-semibold text-foreground">Leave feedback</h3>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className="block text-xs font-medium text-zinc-700 mb-1">
+          <label className="block text-xs font-medium text-foreground mb-1">
             Name <span className="text-red-500">*</span>
           </label>
           <input
@@ -84,23 +83,23 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Your name"
-            className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
+            className="block w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-zinc-700 mb-1">Role</label>
+          <label className="block text-xs font-medium text-foreground mb-1">Role</label>
           <input
             type="text"
             value={role}
             onChange={(e) => setRole(e.target.value)}
             placeholder="Designer, Engineer…"
-            className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
+            className="block w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-zinc-700 mb-1">Type</label>
+        <label className="block text-xs font-medium text-foreground mb-1">Type</label>
         <div className="flex flex-wrap gap-2">
           {FEEDBACK_TYPES.map(({ value, label }) => (
             <label key={value} className="flex items-center gap-1.5 cursor-pointer">
@@ -110,16 +109,16 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
                 value={value}
                 checked={type === value}
                 onChange={() => setType(value)}
-                className="accent-violet-600"
+                className="accent-primary"
               />
-              <span className="text-sm text-zinc-700">{label}</span>
+              <span className="text-sm text-foreground">{label}</span>
             </label>
           ))}
         </div>
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-zinc-700 mb-1">
+        <label className="block text-xs font-medium text-foreground mb-1">
           Comment <span className="text-red-500">*</span>
         </label>
         <textarea
@@ -127,16 +126,16 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
           onChange={(e) => setComment(e.target.value)}
           rows={3}
           placeholder="Your feedback…"
-          className="block w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-600 resize-none"
+          className="block w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
         />
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-500">{error}</p>}
 
       <button
         type="submit"
         disabled={submitting}
-        className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-violet-700 disabled:opacity-50"
+        className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >
         {submitting ? "Submitting…" : "Submit feedback"}
       </button>

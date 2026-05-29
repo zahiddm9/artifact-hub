@@ -42,10 +42,10 @@ export function FeedbackSummary({ artifactId, initialSummary, feedbackCount }: P
   if (!hasFeedback) return null;
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-zinc-900">Feedback summary</h3>
+          <h3 className="font-semibold text-foreground">Feedback summary</h3>
           {isStale && (
             <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
               Stale
@@ -56,7 +56,7 @@ export function FeedbackSummary({ artifactId, initialSummary, feedbackCount }: P
           <button
             onClick={() => generate(false)}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-violet-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             {loading ? "Generating…" : "Summarize feedback"}
           </button>
@@ -64,33 +64,31 @@ export function FeedbackSummary({ artifactId, initialSummary, feedbackCount }: P
           <button
             onClick={() => generate(true)}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors duration-150 hover:bg-zinc-50 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
           >
             {loading ? "Regenerating…" : "Regenerate"}
           </button>
         ) : null}
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-500">{error}</p>}
 
       {loading && !summary && (
         <div className="space-y-2 animate-pulse">
-          <div className="h-4 bg-zinc-100 rounded w-3/4" />
-          <div className="h-4 bg-zinc-100 rounded w-1/2" />
+          <div className="h-4 bg-secondary rounded w-3/4" />
+          <div className="h-4 bg-secondary rounded w-1/2" />
         </div>
       )}
 
       {summary && (
         <div className="space-y-4">
-          {/* Overall assessment */}
-          <div className="rounded-lg bg-zinc-50 px-4 py-3">
-            <p className="text-sm text-zinc-700 leading-relaxed">
+          <div className="rounded-lg bg-secondary px-4 py-3">
+            <p className="text-sm text-foreground leading-relaxed">
               {summary.summary.overall_assessment}
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            {/* Approvals */}
             {summary.summary.approval_count > 0 && (
               <SummarySection
                 title="Approvals"
@@ -99,24 +97,18 @@ export function FeedbackSummary({ artifactId, initialSummary, feedbackCount }: P
                 single
               />
             )}
-
-            {/* Open issues */}
             {summary.summary.open_issues.length > 0 && (
               <SummarySection title="Open issues" color="red" items={summary.summary.open_issues} />
             )}
-
-            {/* Suggestions */}
             {summary.summary.suggestions.length > 0 && (
               <SummarySection title="Suggestions" color="blue" items={summary.summary.suggestions} />
             )}
-
-            {/* Questions */}
             {summary.summary.questions.length > 0 && (
               <SummarySection title="Questions" color="amber" items={summary.summary.questions} />
             )}
           </div>
 
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-muted-foreground">
             Generated from {summary.feedback_count} feedback item{summary.feedback_count === 1 ? "" : "s"}
             {summary.model ? ` · ${summary.model}` : ""}
           </p>

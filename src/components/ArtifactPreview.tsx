@@ -11,7 +11,7 @@ interface Props {
 export function ArtifactPreview({ type, signedUrl, title }: Props) {
   if (type === "image") {
     return (
-      <div className="flex items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 overflow-hidden min-h-48">
+      <div className="flex items-center justify-center rounded-xl border border-border bg-card overflow-hidden min-h-48">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={signedUrl}
@@ -24,7 +24,7 @@ export function ArtifactPreview({ type, signedUrl, title }: Props) {
 
   if (type === "pdf") {
     return (
-      <div className="rounded-xl border border-zinc-200 overflow-hidden" style={{ height: 700 }}>
+      <div className="rounded-xl border border-border overflow-hidden" style={{ height: 700 }}>
         <iframe
           src={signedUrl}
           title={title}
@@ -35,9 +35,8 @@ export function ArtifactPreview({ type, signedUrl, title }: Props) {
     );
   }
 
-  // html — sandboxed; allow-scripts for interactivity, no allow-same-origin to isolate
   return (
-    <div className="rounded-xl border border-zinc-200 overflow-hidden" style={{ height: 600 }}>
+    <div className="rounded-xl border border-border overflow-hidden" style={{ height: 600 }}>
       <iframe
         src={signedUrl}
         title={title}
