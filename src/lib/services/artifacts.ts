@@ -1,0 +1,75 @@
+import { createAdminClient } from "@/lib/supabase";
+import { uploadArtifact } from "@/lib/storage";
+import type { Artifact, ArtifactType, ArtifactVisibility, CreateArtifactBody, ServiceResult } from "@/types";
+
+export async function listArtifacts({
+  type,
+  tags,
+  visibility,
+  limit = 50,
+  offset = 0,
+}: {
+  type?: ArtifactType;
+  tags?: string[];
+  visibility?: ArtifactVisibility;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<ServiceResult<Artifact[]>> {
+  const supabase = createAdminClient();
+  let query = supabase
+    .from("artifacts")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (visibility) query = query.eq("visibility", visibility);
+  if (type) query = query.eq("type", type);
+  if (tags && tags.length > 0) query = query.overlaps("tags", tags);
+
+  const { data, error } = await query;
+  if (error) return { ok: false, status: 500, message: error.message };
+  return { ok: true, data: (data ?? []) as Artifact[] };
+}
+
+export async function getArtifact(id: string): Promise<ServiceResult<Artifact>> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("artifacts")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return { ok: false, status: 404, message: "Artifact not found" };
+    return { ok: false, status: 500, message: error.message };
+  }
+  return { ok: true, data: data as Artifact };
+}
+
+export async function createArtifact(body: CreateArtifactBody): Promise<ServiceResult<Artifact>> {
+  let storagePath: string;
+  try {
+    storagePath = await uploadArtifact(body.file_base64, body.mime_type, body.filename);
+  } catch (err) {
+    return { ok: false, status: 500, message: err instanceof Error ? err.message : "Upload failed" };
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("artifacts")
+    .insert({
+      title: body.title,
+      description: body.description ?? null,
+      tags: body.tags ?? [],
+      type: body.type,
+      mime_type: body.mime_type,
+      visibility: body.visibility ?? "public",
+      storage_path: storagePath,
+      original_filename: body.filename,
+    })
+    .select("*")
+    .single();
+
+  if (error) return { ok: false, status: 500, message: error.message };
+  return { ok: true, data: data as Artifact };
+}

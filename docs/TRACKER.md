@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Phase 2 — Core Web
+Phase 3 — Feedback + LLM
 
 ## Done
 
@@ -23,9 +23,19 @@ Phase 2 — Core Web
 * `.gitignore` protects `node_modules`, `.next`, and all `.env*.local` files
 * `npm run build` passes clean (TypeScript OK, no warnings)
 
+### Phase 2 — Core Web (complete)
+
+* `src/lib/services/artifacts.ts` — listArtifacts, getArtifact, createArtifact
+* `src/lib/services/share.ts` — createShareLink, validateShareLink (expiry checked)
+* API routes: `GET/POST /api/artifacts`, `GET /api/artifacts/[id]`, `GET /api/artifacts/[id]/preview`, `POST /api/share`, `GET /api/share/[token]`
+* Components: ArtifactCard, GalleryFilter (URL-based filter state), ArtifactPreview (image/PDF/sandboxed HTML), ShareButton, PublishForm
+* Pages: gallery (`/`), artifact detail (`/artifacts/[id]`, 403 for unlisted), share link view (`/share/[token]`), publish (`/publish`)
+* Auto-share-link created on publish for unlisted artifacts; success screen shows copy-able URL
+* `npm run build` clean — all 9 routes registered
+
 ## In progress
 
-* Phase 2 — Core Web (not started yet)
+* Phase 3 — Feedback + LLM (not started yet)
 
 ## Blockers and decisions
 
