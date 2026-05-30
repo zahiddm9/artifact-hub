@@ -27,13 +27,21 @@ export function FeedbackSummary({ artifactId, initialSummary, feedbackCount }: P
         body: JSON.stringify({ force_refresh: forceRefresh }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Failed to generate summary");
+        if (res.status === 502 || res.status === 503)
+          throw new Error("The AI service is temporarily unavailable. Try again in a moment.");
+        if (res.status === 429)
+          throw new Error("Too many requests. Please wait a moment before generating another summary.");
+        if (res.status === 422)
+          throw new Error("No feedback to summarize yet.");
+        if (res.status >= 500)
+          throw new Error("Something went wrong generating the summary. Please try again.");
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error ?? "Failed to generate summary.");
       }
       const data = await res.json();
       setSummary(data.summary);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }

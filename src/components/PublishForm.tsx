@@ -82,8 +82,12 @@ export function PublishForm() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Upload failed");
+        if (res.status === 429)
+          throw new Error("Too many requests. Please wait a moment before publishing.");
+        if (res.status >= 500)
+          throw new Error("Upload failed. Please try again.");
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error ?? "Upload failed.");
       }
 
       const data = await res.json();

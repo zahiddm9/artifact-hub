@@ -154,6 +154,7 @@ Evidence the system works, not just claims:
 - **Live smoke test** against the Vercel URL: gallery + filters, preview rendering for all three types (HTML iframe, SVG image, PDF with an "open in new tab" fallback for mobile Safari), feedback submit, summarize, share-link create/open, and publish (public lands in gallery; unlisted shows only the share link).
 - **Unlisted enforcement confirmed live:** `/artifacts/[id]` → 403, `/share/[token]` → full detail.
 - **MCP verified in Claude Desktop** against the deployed URL across all 9 tools, including cache-first behavior on `summarize_feedback` and the auto-share-link path on unlisted `publish_artifact`.
+- **Graceful error handling** throughout the client surface. HTTP status codes are mapped to user-friendly messages — 502/503 shows "The AI service is temporarily unavailable", 429 shows "Too many requests. Please wait a moment", and 500+ shows a generic retry prompt. Raw API or model error messages never reach the UI. Validation errors (400) still surface their specific message since those are user-actionable.
 
 ---
 
