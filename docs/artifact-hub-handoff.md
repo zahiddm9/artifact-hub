@@ -573,4 +573,142 @@ git commit -m "chore: add Claude Code session logs"
 ### Suggested skills for next session
 
 - **`superpowers:verification-before-completion`** — run before declaring submission complete
+
+---
+
+## UPDATE — 2026-05-30 (Submission Polish + Feature Cleanup)
+
+**Last commit:** `93d3ca2` — fix: graceful error handling across all client forms  
+**Branch:** `feature/repo-cleanup-and-ci`  
+**Status:** Feature branch fully built and pushed. **Not yet merged to main.**
+
+---
+
+### What happened in this session
+
+A full submission-polish pass across two sessions. All remaining deliverables from the previous handoff are now complete. Several product and engineering gaps were identified and fixed. The branch is ready to merge.
+
+---
+
+### All changes made (commits `abf6603` → `93d3ca2`)
+
+**Repo cleanup + WRITEUP polish** (`abf6603`, `dde224c`)
+- `requirements.md` moved to `docs/requirements.md`
+- WRITEUP fully rewritten: Publisher Demo framing, ChatGPT disclosure, CI description updated
+- MCP deployment section adds `ARTIFACT_HUB_BASE_URL` env var table
+
+**Security fixes** (`0a43129`)
+- Removed unauthenticated `DELETE`/`PATCH` from `/api/artifacts/[id]` (web route)
+- Closed `/api/feedback/[id]` DELETE with explicit 405
+- Added `DELETE` + `PATCH` to `/api/mcp/artifacts/[id]` behind `requireMcpAuth`
+- Converted web UI delete/edit/feedback-delete to Next.js Server Actions (no public HTTP exposure)
+- Updated MCP `delete_artifact` + `update_artifact` tools to call `/api/mcp/artifacts/:id`
+- "Owner" label → "Publisher Demo" throughout UI and WRITEUP
+
+**CI** (`f407c67`)
+- Quality Checks now runs on `feature/**` pushes only (not main, not PRs)
+
+**Superpowers skills** (`c4d00c9`)
+- 10 superpowers SKILL.md files copied to `.claude/skills/` for reviewer visibility
+- CI renamed to "Quality Checks", job renamed to `quality`
+
+**Session logs** (`69404a5`)
+- 10 `.jsonl` Claude Code session logs committed to `claude-sessions/`
+
+**WRITEUP expansions** (`31461ab`, `68d4ef8`)
+- Stack choices, schema design decisions, MCP transport rationale, LLM model selection (why Gemini Flash), prompt design, rate limiting algorithm reasoning, development process section
+- Production evolution expanded: full environment isolation (dev/preview/staging/prod), CD pipeline, DB migration pipeline, dependency scanning, backup/DR, AI cost management
+
+**Walkthrough script** (`2f1d2f3`)
+- `docs/walkthrough-script.md` created — 5-segment script with exact MCP prompt, timing, talking points, pre-record checklist
+- Segment 4 updated: Vercel + Supabase instead of WRITEUP scroll
+
+**MCP fix** (`dfc4d71`)
+- `get_artifact` now includes `feedback_id` in each feedback item so `update_feedback_status` can be chained in one prompt
+
+**Product features** (`4fc1d71`, `c479b2a`, `d6a2dd9`)
+- Feedback status management added to web UI in Publisher Demo mode (`FeedbackStatusButton` component)
+- Share button hidden for public artifacts (direct URL, no token needed)
+- Share button for public artifacts simplified to copy direct URL
+
+**Search** (`5581db0`, `d372434`)
+- Server-side name/description search via Supabase `ilike` with debounced URL param
+- Name + tag search combined into single bar with Name/Tag mode toggle
+
+**Summarization fix** (`150627a`)
+- `buildPrompt` now includes `status` field per feedback item (`[type|status]` format)
+- Prompt instruction updated to exclude resolved issues from `open_issues[]`
+- `PROMPT_VERSION` bumped to `v2`
+
+**README** (`9970f2f`)
+- `README.md` created with full local setup, env vars, migrations, seeding, testing, and MCP instructions
+
+**Error handling** (`93d3ca2`)
+- `FeedbackSummary`, `FeedbackForm`, `PublishForm` — HTTP status codes mapped to friendly messages
+- 502/503 → "AI service temporarily unavailable", 429 → "Too many requests", 500+ → generic retry prompt
+- Raw API/model errors never surface to the UI
+- WRITEUP updated to document graceful error handling
+
+---
+
+### Current technical state
+
+| Check | Status |
+|---|---|
+| `npm run lint` | 0 errors, 8 warnings (all intentional `_` unused vars) |
+| `npm run typecheck` | Clean |
+| `npm run test:run` | 24/24 pass |
+| `cd mcp && npm run build` | Clean, 9 tools |
+| Live URL | `https://artifact-hub-green.vercel.app` |
+| Branch | `feature/repo-cleanup-and-ci` — pushed, not merged |
+
+---
+
+### What still remains
+
+**1. Record the 5-minute walkthrough video** — script at `docs/walkthrough-script.md`. Key flows:
+- Gallery → Publisher Demo toggle → artifact detail → feedback → summarize → (share for unlisted)
+- MCP single prompt: list → get roadmap → summarize → resolve Tom Wright's issue → regenerate
+- Vercel dashboard (deployments, env vars) → Supabase (tables, RLS, private storage)
+- GitHub Actions green CI run → test file → docs/plans/
+
+**2. Merge feature branch to main** — all commits are on `feature/repo-cleanup-and-ci`. Merge to main before submission.
+
+**3. Submit** — provide admin key privately alongside the repo link.
+
+---
+
+### Key files changed in this session
+
+| Path | What changed |
+|---|---|
+| `WRITEUP.md` | Full rewrite + platform engineering rationale + error handling note |
+| `README.md` | New — local setup, testing, MCP instructions |
+| `docs/walkthrough-script.md` | New — 5-minute recording script |
+| `src/lib/actions/artifacts.ts` | New — Server Actions for delete + update |
+| `src/lib/actions/feedback.ts` | New — Server Actions for delete + status update |
+| `src/components/FeedbackStatusButton.tsx` | New — status dropdown in Publisher Demo mode |
+| `src/components/FeedbackSummary.tsx` | Graceful error handling |
+| `src/components/FeedbackForm.tsx` | Graceful error handling |
+| `src/components/PublishForm.tsx` | Graceful error handling |
+| `src/components/ShareButton.tsx` | Hidden for public artifacts; token only for unlisted |
+| `src/components/GalleryFilter.tsx` | Combined Name/Tag search bar with debounce |
+| `src/lib/services/artifacts.ts` | Added `search` param with `ilike` |
+| `src/lib/services/summarize.ts` | Status in prompt, PROMPT_VERSION v2 |
+| `src/app/api/artifacts/[id]/route.ts` | Removed DELETE/PATCH (web route) |
+| `src/app/api/feedback/[id]/route.ts` | Closed with 405 |
+| `src/app/api/mcp/artifacts/[id]/route.ts` | Added DELETE/PATCH behind requireMcpAuth |
+| `mcp/src/tools/manage.ts` | Routes updated to /api/mcp/artifacts/:id |
+| `mcp/src/tools/artifacts.ts` | feedback_id included in get_artifact output |
+| `.github/workflows/ci.yml` | feature/** only, job renamed to quality |
+| `.claude/skills/` | 10 superpowers SKILL.md files added |
+| `claude-sessions/` | 10 session log .jsonl files committed |
+
+---
+
+### Suggested skills for next session
+
+1. **`superpowers:finishing-a-development-branch`** — use this to merge the feature branch to main and wrap up
+2. **`superpowers:verification-before-completion`** — run before marking the submission complete
+3. **`superpowers:systematic-debugging`** — if anything breaks during final verification
 - No implementation skills needed — remaining work is file copy + WRITEUP prose only
