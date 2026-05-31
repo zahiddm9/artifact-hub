@@ -1,8 +1,18 @@
-import { GoogleGenAI } from "@google/genai";
+import { createHash } from "crypto";
+import { GoogleGenAI, Type } from "@google/genai";
 import { createAdminClient } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 import type { Artifact, Feedback, FeedbackSummary, FeedbackSummaryData, ServiceResult } from "@/types";
 
 const PROMPT_VERSION = "v2";
+
+// Stable hash of feedback ids + statuses — changes when any item is resolved/updated.
+// Drives cache invalidation independently of count.
+function computeContentHash(items: Feedback[]): string {
+  const sorted = [...items].sort((a, b) => a.id.localeCompare(b.id));
+  const str = sorted.map((f) => `${f.id}:${f.status}`).join(",");
+  return createHash("sha256").update(str).digest("hex").slice(0, 16);
+}
 
 function buildPrompt(artifact: Artifact, items: Feedback[]): string {
   const lines = items.map((f, i) => {
@@ -59,7 +69,96 @@ export async function getCachedSummary(artifactId: string): Promise<FeedbackSumm
   return data as FeedbackSummary;
 }
 
-// Cache-first: returns cached if feedback_count unchanged and !forceRefresh.
+interface GeminiResult {
+  text: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  attempts: number;
+}
+
+// Calls Gemini with up to 3 attempts (exponential backoff: 500ms, 1s).
+// Skips retry for permanent config errors (auth, bad key, invalid argument).
+async function callGeminiWithRetry(
+  ai: GoogleGenAI,
+  model: string,
+  prompt: string,
+  artifactId: string
+): Promise<GeminiResult> {
+  const isPermanentError = (err: unknown) => {
+    const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+    return (
+      msg.includes("api_key") ||
+      msg.includes("api key") ||
+      msg.includes("permission") ||
+      msg.includes("invalid argument") ||
+      msg.includes("unauthenticated") ||
+      msg.includes('"code":401') ||
+      msg.includes('"code": 401')
+    );
+  };
+
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Gemini request timed out after 15s")), 15_000)
+      );
+
+      const responsePromise = ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              overall_assessment: { type: Type.STRING },
+              open_issues:        { type: Type.ARRAY, items: { type: Type.STRING } },
+              suggestions:        { type: Type.ARRAY, items: { type: Type.STRING } },
+              questions:          { type: Type.ARRAY, items: { type: Type.STRING } },
+              approval_count:     { type: Type.INTEGER },
+            },
+            required: ["overall_assessment", "open_issues", "suggestions", "questions", "approval_count"],
+          },
+        },
+      });
+
+      const response = await Promise.race([responsePromise, timeoutPromise]);
+      const text = response.text;
+      if (!text) throw new Error("Gemini returned an empty response");
+
+      return {
+        text,
+        inputTokens:  response.usageMetadata?.promptTokenCount    ?? null,
+        outputTokens: response.usageMetadata?.candidatesTokenCount ?? null,
+        attempts: attempt,
+      };
+    } catch (err) {
+      lastError = err;
+      if (isPermanentError(err)) {
+        logger.error("summary.llm_permanent_error", {
+          artifact_id: artifactId,
+          model,
+          attempt,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        throw err;
+      }
+      logger.warn("summary.llm_retry", {
+        artifact_id: artifactId,
+        model,
+        attempt,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      if (attempt < 3) {
+        await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1))); // 500ms, 1s
+      }
+    }
+  }
+  throw lastError;
+}
+
+// Cache-first: returns cached if content_hash unchanged and !forceRefresh.
 // Calls Gemini and upserts when missing, stale, or forceRefresh=true.
 export async function getSummary(
   artifactId: string,
@@ -74,6 +173,7 @@ export async function getSummary(
     .single();
   if (artifactErr) {
     if (artifactErr.code === "PGRST116") return { ok: false, status: 404, message: "Artifact not found" };
+    logger.error("summary.db_error", { artifact_id: artifactId, stage: "fetch_artifact", error: artifactErr.message });
     return { ok: false, status: 500, message: artifactErr.message };
   }
 
@@ -82,7 +182,10 @@ export async function getSummary(
     .select("*")
     .eq("artifact_id", artifactId)
     .order("created_at", { ascending: true });
-  if (feedbackErr) return { ok: false, status: 500, message: feedbackErr.message };
+  if (feedbackErr) {
+    logger.error("summary.db_error", { artifact_id: artifactId, stage: "fetch_feedback", error: feedbackErr.message });
+    return { ok: false, status: 500, message: feedbackErr.message };
+  }
 
   const items = (feedbackRows ?? []) as Feedback[];
   const currentCount = items.length;
@@ -91,46 +194,67 @@ export async function getSummary(
     return { ok: false, status: 422, message: "No feedback to summarize yet" };
   }
 
-  // Return cache if fresh
+  const contentHash = computeContentHash(items);
+
   const { data: cached } = await supabase
     .from("feedback_summaries")
     .select("*")
     .eq("artifact_id", artifactId)
     .single();
 
-  if (cached && cached.feedback_count === currentCount && !forceRefresh) {
+  if (cached && cached.content_hash === contentHash && !forceRefresh) {
+    logger.info("summary.cache_hit", {
+      artifact_id: artifactId,
+      feedback_count: currentCount,
+      prompt_version: cached.prompt_version,
+      model: cached.model,
+    });
     return { ok: true, data: { summary: cached as FeedbackSummary, feedbackCount: currentCount } };
   }
+
+  const cacheMissReason = !cached ? "no_cache"
+    : forceRefresh ? "force_refresh"
+    : "stale_hash"; // content changed (status update or new feedback)
+
+  logger.info("summary.cache_miss", {
+    artifact_id: artifactId,
+    feedback_count: currentCount,
+    reason: cacheMissReason,
+  });
 
   // Call Gemini
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return { ok: false, status: 500, message: "GEMINI_API_KEY not configured" };
 
-  const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+  const model = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
   const prompt = buildPrompt(artifact as Artifact, items);
 
   let summaryData: FeedbackSummaryData;
+  const callStart = Date.now();
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: { responseMimeType: "application/json" },
-    });
-
-    const text = response.text;
-    if (!text) {
-      return { ok: false, status: 502, message: "Gemini returned an empty response" };
-    }
+    const result = await callGeminiWithRetry(new GoogleGenAI({ apiKey }), model, prompt, artifactId);
+    const latencyMs = Date.now() - callStart;
 
     let parsed: unknown;
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(result.text);
     } catch {
+      logger.error("summary.llm_invalid_json", {
+        artifact_id: artifactId,
+        model,
+        latency_ms: latencyMs,
+        attempts: result.attempts,
+      });
       return { ok: false, status: 502, message: "Gemini response was not valid JSON" };
     }
 
     if (!isValidSummaryData(parsed)) {
+      logger.error("summary.llm_invalid_shape", {
+        artifact_id: artifactId,
+        model,
+        latency_ms: latencyMs,
+        attempts: result.attempts,
+      });
       return {
         ok: false,
         status: 502,
@@ -138,8 +262,25 @@ export async function getSummary(
       };
     }
 
+    logger.info("summary.llm_call_complete", {
+      artifact_id: artifactId,
+      model,
+      prompt_version: PROMPT_VERSION,
+      feedback_count: currentCount,
+      latency_ms: latencyMs,
+      input_tokens: result.inputTokens,
+      output_tokens: result.outputTokens,
+      attempts: result.attempts,
+    });
+
     summaryData = parsed;
   } catch (err) {
+    logger.error("summary.llm_error", {
+      artifact_id: artifactId,
+      model,
+      latency_ms: Date.now() - callStart,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return {
       ok: false,
       status: 502,
@@ -155,6 +296,7 @@ export async function getSummary(
         artifact_id: artifactId,
         summary: summaryData,
         feedback_count: currentCount,
+        content_hash: contentHash,
         model,
         prompt_version: PROMPT_VERSION,
         generated_at: new Date().toISOString(),

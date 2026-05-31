@@ -153,11 +153,8 @@ export function PublishForm() {
             <p className="text-sm text-amber-800">
               Your artifact was saved but the share link could not be created.
             </p>
-            <p className="text-xs font-mono text-muted-foreground break-all">
-              Artifact ID: {success.artifactId}
-            </p>
             <p className="text-xs text-muted-foreground">
-              Use the MCP <code>create_share_link</code> tool with this ID to generate an access link.
+              Contact an admin to generate an access link for this artifact.
             </p>
           </div>
         ) : (

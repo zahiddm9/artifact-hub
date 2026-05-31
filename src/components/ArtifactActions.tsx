@@ -53,7 +53,12 @@ export function ArtifactActions({ artifact }: Props) {
 
   async function handleDelete() {
     setMode("deleting");
-    await deleteArtifactAction(artifact.id);
+    const result = await deleteArtifactAction(artifact.id);
+    if (!result.ok) {
+      setError(result.message ?? "Delete failed. Please try again.");
+      setMode("idle");
+      return;
+    }
     router.push("/?view=owner");
   }
 

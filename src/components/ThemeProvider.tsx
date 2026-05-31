@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 export type Theme = "theme-saas" | "theme-creative" | "theme-docs" | "theme-premium";
 
 const STORAGE_KEY = "artifact-hub-theme";
-const DEFAULT_THEME: Theme = "theme-saas";
+const DEFAULT_THEME: Theme = "theme-premium";
 
 interface ThemeContextValue {
   theme: Theme;
