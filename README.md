@@ -41,7 +41,7 @@ cp .env.example .env.local
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Data API → `service_role` key |
 | `ARTIFACT_HUB_ADMIN_KEY` | Any strong random string — `openssl rand -hex 32` |
 | `GEMINI_API_KEY` | Google AI Studio → API Keys |
-| `GEMINI_MODEL` | `gemini-2.5-flash` (or omit to use the default) |
+| `GEMINI_MODEL` | `gemini-3.1-flash-lite` (or omit to use the default) |
 
 **3. Apply database migrations**
 
