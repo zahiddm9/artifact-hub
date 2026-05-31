@@ -27,7 +27,13 @@ export default async function ArtifactDetailPage({ params, searchParams }: Props
     if (result.status === 404) notFound();
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Error loading artifact.</p>
+        <div className="text-center max-w-sm px-4">
+          <h1 className="text-2xl font-bold text-foreground">Something went wrong</h1>
+          <p className="mt-2 text-muted-foreground">This artifact could not be loaded. Please try again.</p>
+          <Link href="/" className="mt-4 inline-block text-sm text-primary transition-colors hover:text-primary/80">
+            ← Back to gallery
+          </Link>
+        </div>
       </div>
     );
   }

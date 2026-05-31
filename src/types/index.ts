@@ -52,6 +52,7 @@ export interface FeedbackSummary {
   artifact_id: string;
   summary: FeedbackSummaryData;
   feedback_count: number;
+  content_hash: string | null;
   model: string | null;
   prompt_version: string | null;
   generated_at: string;

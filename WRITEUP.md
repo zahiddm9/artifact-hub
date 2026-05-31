@@ -1,7 +1,7 @@
 # Artifact Hub — Writeup
 
 **Live app:** https://artifact-hub-green.vercel.app
-**Stack:** Next.js 16 (App Router) · Supabase (Postgres + private Storage) · Gemini 2.5 Flash · standalone stdio MCP server
+**Stack:** Next.js 16 (App Router) · Supabase (Postgres + private Storage) · Gemini 3.1 Flash Lite · standalone stdio MCP server
 **Status:** Deployed, seeded, and verified end-to-end. CI green (lint + typecheck + 24 tests). MCP verified live in Claude Desktop across all 9 tools.
 
 ---
@@ -128,16 +128,29 @@ So a reviewer can say *"List the artifacts, summarize the roadmap feedback, mark
 
 **Feedback summarization** is the single AI feature, and it maps directly onto the brief's first suggested use case — "summarizing feedback across multiple reviewers" — because that *is* the stated pain point.
 
-**Model selection.** Gemini 2.5 Flash was chosen over GPT-4o, Claude, or the heavier Gemini Pro for three specific reasons. First, **task fit**: summarizing 3–10 short feedback items into a structured 5-field digest is a low-complexity synthesis task — Flash produces quality output for this use case, and using a heavier model would be engineering overkill. Second, **native JSON mode**: the `@google/genai` SDK supports `responseMimeType: "application/json"`, which enforces structured output at the API contract level. Prompting a model to "output JSON" is brittle; having the API enforce the output format is not. Third, **cost and configurability**: Flash is free-tier accessible at demo volumes and fast (~1–2s for this task). The model is injected via the `GEMINI_MODEL` environment variable (defaulting to `gemini-2.5-flash`), so upgrading to Pro or swapping to a different provider entirely is a configuration change, not a code change — the abstraction is intentionally thin.
+**Model selection.** Gemini 3.1 Flash Lite was chosen over GPT-4o, Claude, or the heavier Gemini Pro for three specific reasons. First, **task fit**: summarizing 3–10 short feedback items into a structured 5-field digest is a low-complexity synthesis task — Flash produces quality output for this use case, and using a heavier model would be engineering overkill. Second, **schema-enforced output**: the `@google/genai` SDK supports both `responseMimeType: "application/json"` and a `responseSchema` (a full JSON Schema definition). This is a stronger guarantee than asking a model to "output JSON" — the API enforces the exact field names and types before the response leaves the model. The runtime `isValidSummaryData` guard remains as a last-resort check, but it should never fire. Third, **cost and configurability**: Flash Lite is free-tier accessible at demo volumes and fast (~1–2s for this task). The model is injected via the `GEMINI_MODEL` environment variable (defaulting to `gemini-3.1-flash-lite`), so upgrading to Pro or swapping to a different provider entirely is a configuration change, not a code change — the abstraction is intentionally thin.
 
-**Prompt design.** The prompt gives the model the artifact title, description, and the full feedback thread — each item's reviewer name, role, feedback type, and comment. It explicitly maps the four feedback types to four output fields: approvals → `approval_count`, issues → `open_issues[]`, suggestions → `suggestions[]`, questions → `questions[]`. The output contract is a named JSON schema, not a free-text instruction. The `prompt_version: "v1"` stored alongside each cached summary means future prompt iterations are distinguishable from old ones — old cached summaries can be selectively invalidated by version without a full cache wipe.
+**Prompt design.** The prompt gives the model the artifact title, description, and the full feedback thread — each item's reviewer name, role, feedback type, and status. It explicitly maps the four feedback types to four output fields: approvals → `approval_count`, issues → `open_issues[]` (resolved items excluded by instruction), suggestions → `suggestions[]`, questions → `questions[]`. The output contract is a named JSON schema, not a free-text instruction. The `prompt_version` stored alongside each cached summary means future prompt iterations are distinguishable — old cached summaries can be selectively invalidated by version without a full cache wipe. The current version is `v2`, which introduced per-item `status` in the prompt so the model correctly excludes resolved issues from `open_issues[]`.
 
 On any detail page (and via the `summarize_feedback` MCP tool), "Summarize feedback" runs `src/lib/services/summarize.ts`:
 
-1. **Cache-first.** Query `feedback_summaries`. If the stored `feedback_count` equals the live count and no force-refresh, return the cached summary — **no model call**. This keeps the feature cheap and instant in the common case.
-2. **Generate only when needed.** If the summary is missing, stale (new feedback arrived), or `force_refresh: true`, build a prompt from the full thread and call `gemini-2.5-flash` via `@google/genai` with `responseMimeType: "application/json"`.
-3. **Validate before trusting.** The response is checked against the expected shape (`overall_assessment`, `open_issues[]`, `suggestions[]`, `questions[]`, `approval_count`); a malformed or empty response returns 502 rather than persisting garbage. This guard (`isValidSummaryData`) is unit-tested.
-4. **Store with provenance.** The validated digest is upserted with `model`, `prompt_version`, `feedback_count`, and `generated_at` — all surfaced in the UI footer and MCP output, so the summary is never a black box.
+1. **Cache-first with content-hash invalidation.** Query `feedback_summaries`. Compare the stored `content_hash` — a SHA-256 of sorted `id:status` pairs for all feedback items — against the hash of the current live feedback. If they match and no force-refresh, return the cached summary with **no model call**. Using a content hash rather than a simple count means the cache correctly invalidates when any feedback item changes status (e.g. a reviewer marks an issue resolved), not only when new feedback arrives.
+2. **Generate only when needed.** If the summary is missing, the hash has changed, or `force_refresh: true`, build the prompt from the full thread and call `gemini-3.1-flash-lite` via `@google/genai` with `responseMimeType: "application/json"` and `responseSchema` enforcing the exact output shape at the API level.
+3. **Reliability: retry and timeout.** The Gemini call is wrapped in a 3-attempt retry loop with exponential backoff (500ms → 1s). Permanent errors (auth failures, invalid API key) bypass retry and fail immediately. Every attempt is raced against a 15-second timeout — if Gemini hangs, the request fails gracefully rather than draining the serverless function's time budget.
+4. **Validate before trusting.** Even with `responseSchema` enforcement, the response is checked against `isValidSummaryData` before being persisted. A malformed or empty response returns 502 rather than storing garbage. This guard is unit-tested (11 cases).
+5. **Store with provenance.** The validated digest is upserted with `model`, `prompt_version`, `feedback_count`, `content_hash`, and `generated_at` — all surfaced in the UI footer and MCP output, so the summary is never a black box.
+
+**LLM observability.** `src/lib/logger.ts` is a structured JSON logger that emits one JSON object per line to stdout. Every summarization request logs a typed event:
+
+- `summary.cache_hit` — artifact ID, feedback count, model, prompt version that served it
+- `summary.cache_miss` — artifact ID, feedback count, and the *reason*: `no_cache`, `stale_hash` (content changed), or `force_refresh`
+- `summary.llm_call_complete` — artifact ID, model, prompt version, feedback count, **latency in ms**, **input tokens**, **output tokens**, attempt number
+- `summary.llm_retry` — artifact ID, model, attempt number, error message (transient failures only)
+- `summary.llm_permanent_error` / `summary.llm_error` — artifact ID, model, error message, latency
+- `summary.llm_invalid_json` / `summary.llm_invalid_shape` — validation failures with model and latency
+- `summary.db_error` — artifact ID, stage (`fetch_artifact` or `fetch_feedback`), DB error message
+
+This gives full observability into cache hit/miss rates, model call latency, token consumption per request, and retry behavior — all queryable in any log aggregator (Datadog, Grafana Loki, CloudWatch, Vercel Log Drains) without additional instrumentation. The `input_tokens` + `output_tokens` fields make per-artifact cost attribution possible as soon as the logs are flowing into a cost-tracking pipeline.
 
 The UI renders a 1–2 sentence assessment plus sections for issues, suggestions, questions, and an approval count (each shown only if non-empty), a **stale badge** when feedback has changed since generation, and a one-click **Regenerate**. The seeded artifacts ship with 5 feedback entries each across all four types, so the feature produces a meaningful digest on first load.
 
@@ -151,9 +164,11 @@ Evidence the system works, not just claims:
 
 - **CI on every `feature/**` branch push** (`.github/workflows/ci.yml`): `lint` → `typecheck` → `test:run`. Feature branches carry the test gate; main stays clean by the time it lands.
 - **24 unit tests across 4 files**, focused on the highest-consequence pure logic: MCP auth (`isMcpAuthorized`), summary-shape validation (`isValidSummaryData`), share-link expiry boundary (`isShareLinkExpired`), and the rate-limit window/count algorithm (`checkRateLimit`). These are the functions where a silent bug would mean a security or correctness failure, so they're the ones worth pinning down with tests.
+- **LLM service hardening** (`src/lib/services/summarize.ts`): cache invalidation uses a SHA-256 `content_hash` of `id:status` pairs rather than a plain count — correctly invalidates when any feedback item's status changes, not only when feedback is added. `responseSchema` enforcement at the Gemini API level (not just runtime validation). 3-attempt retry with exponential backoff for transient Gemini failures with permanent-error detection (401, unauthenticated) to skip retries on non-recoverable failures; 15-second request timeout via `Promise.race`. Structured observability logging on every code path (cache hit, cache miss with reason, LLM call complete with latency + token counts, retry, error).
 - **Live smoke test** against the Vercel URL: gallery + filters, preview rendering for all three types (HTML iframe, SVG image, PDF with an "open in new tab" fallback for mobile Safari), feedback submit, summarize, share-link create/open, and publish (public lands in gallery; unlisted shows only the share link).
 - **Unlisted enforcement confirmed live:** `/artifacts/[id]` → 403, `/share/[token]` → full detail.
 - **MCP verified in Claude Desktop** against the deployed URL across all 9 tools, including cache-first behavior on `summarize_feedback` and the auto-share-link path on unlisted `publish_artifact`.
+- **Graceful error handling** throughout the client surface. HTTP status codes are mapped to user-friendly messages — 502/503 shows "The AI service is temporarily unavailable", 429 shows "Too many requests. Please wait a moment", and 500+ shows a generic retry prompt. Raw API or model error messages never reach the UI. Validation errors (400) still surface their specific message since those are user-actionable. Every error state includes a recovery action: artifact load failures show a "Back to gallery" link, delete failures surface an inline message rather than silently redirecting, and share-link failures give a user-readable explanation rather than exposing internal identifiers.
 
 ---
 
@@ -180,9 +195,9 @@ The build followed a structured, phase-driven methodology rather than continuous
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Data API → `service_role` key |
 | `ARTIFACT_HUB_ADMIN_KEY` | Any strong random string (`openssl rand -hex 32`) |
 | `GEMINI_API_KEY` | Google AI Studio → API Keys |
-| `GEMINI_MODEL` | `gemini-2.5-flash` (or omit for the default) |
+| `GEMINI_MODEL` | `gemini-3.1-flash-lite` (or omit for the default) |
 
-**Database — Supabase.** Apply migrations in order: `001_initial.sql` (tables + indexes), then `002_rls.sql` (RLS policies) — `npx supabase db push`. Create a private `artifacts` Storage bucket.
+**Database — Supabase.** Apply migrations in order: `001_initial.sql` (tables + indexes), `002_rls.sql` (RLS policies), `003_content_hash.sql` (adds `content_hash` column to `feedback_summaries`) — `npx supabase db push`. Create a private `artifacts` Storage bucket.
 
 **Seed.** `npm run seed` (with `.env.local` pointed at the hosted project) uploads the three sample artifacts and 15 feedback entries; `npm run seed -- --force` wipes and re-seeds.
 
@@ -211,7 +226,7 @@ Supabase + Vercel were chosen *on purpose* for this challenge: they buy a real h
 - **AI cost management.** Gemini API usage monitoring with budget alerts — critical for any AI platform where model call volume is unpredictable. The current rate-limiting (5 summarize calls/min/IP) provides a soft per-user ceiling, but a hard budget alert at the infrastructure level prevents runaway costs from burst traffic or abuse.
 - **Real authentication + RBAC.** Replace the Publisher Demo toggle and shared admin key with SSO/OIDC and role-based authorization (publisher / reviewer / viewer). The current visibility model and the `update_feedback_status` trust boundary are already shaped for this.
 - **Audit logging.** Append-only audit trail for publish, edit, delete, status changes, and share-link creation — who did what, when.
-- **Observability.** Structured logging, metrics, distributed tracing, and error tracking (e.g. OpenTelemetry + a managed backend), plus alerting on the Gemini and Storage dependencies.
+- **Observability.** The AI service layer already emits structured JSON logs (`src/lib/logger.ts`) with typed events for every cache decision, LLM call, retry, and error — including latency and token counts. The next steps are wiring a log drain (Vercel → Datadog / Grafana Loki), adding distributed tracing for the full request path (OpenTelemetry), and alerting on Gemini error rates and P95 latency.
 - **Production MCP model.** Replace the local stdio + shared-key server with a hosted **remote MCP** endpoint (streamable HTTP) behind OAuth, so access is per-user and revocable instead of a single shared admin key.
 - **Distributed rate limiting.** Swap the in-memory limiter for Upstash/Redis (already flagged in `middleware.ts`) so limits hold across instances.
 
@@ -224,7 +239,7 @@ The point is that none of this is rework — the service-layer boundary, the vis
 Product-feature priorities (distinct from the infrastructure evolution above):
 
 1. **User accounts with ownership** (Supabase Auth). The access model is already scoped for it; the Publisher Demo toggle demonstrates the intended UX. Additive, not a rewrite.
-2. **Feedback status management in the web UI.** Publishers can delete feedback today; the next step is marking items resolved / needs_review from the web, closing the loop with the MCP workflow.
+2. **Streaming summarization.** Stream the Gemini response token-by-token so users see the digest being written in real time rather than waiting for a 1–2s cold call to complete at once.
 3. **Semantic search with pgvector.** Embed titles, descriptions, and tags on publish; query by cosine similarity. Tag filtering is fine at demo scale; a real catalog needs full-text + semantic search.
 4. **Artifact versioning.** Track revisions of the same artifact and attach feedback to a specific version — which makes summarization even more valuable across iterative review cycles.
 5. **Webhook / email notifications.** Notify the publisher on new feedback or a regenerated summary — a Supabase Edge Function on row insert.
@@ -258,6 +273,14 @@ A 5-minute screen recording of these flows accompanies the submission.
 ## How this was built (AI tooling)
 
 **Claude Code** was the primary implementation tool. The workflow is visible in the repo: design and execution plans live in `docs/plans/`, phase-by-phase execution state in `docs/TRACKER.md`, and the full Claude Code session logs are included with the submission under `claude-sessions/` per the brief.
+
+Claude Code was used as a system, not just a chat interface. Specific techniques employed throughout the build:
+
+- **Structured skill workflows.** Brainstorming, plan-writing, verification-before-completion, systematic debugging, and code-review skills were invoked at the appropriate phase boundaries — enforcing discipline rather than relying on ad-hoc prompting. The `.claude/skills/` directory committed to the repo contains the full skill set used.
+- **Subagent orchestration.** The `product-requirements-reviewer` agent was spawned independently to audit the product against requirements, user flows, edge cases, and deployment readiness — providing an objective view that a single in-context session cannot.
+- **Context management.** `/clear` was used deliberately between phases to reset the context window, preventing token accumulation from prior phases from influencing later decisions. Each session started with a clean read of the tracker and relevant files rather than carrying stale context.
+- **Model selection.** Model was chosen per task — faster models for search and exploration, stronger models for architecture decisions and critical code paths.
+- **Iterative verification.** Every implementation batch was validated by running the dev server and confirming behavior in the browser before being marked complete — not just passing a build or type check.
 
 **ChatGPT** was used as an external product and architecture reviewer throughout the project — not for code generation, but for critique, prompt refinement, and submission strategy. Specifically: reviewing product decisions for blind spots, stress-testing the access model framing, and pressure-testing the writeup structure. The reason for this is deliberate: a second model with different training and tendencies can surface issues that the primary tool — and the developer — are too close to see. Claude Code shaped the implementation; ChatGPT served as the external critic that kept the product decisions honest.
 

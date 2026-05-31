@@ -42,8 +42,12 @@ export function FeedbackForm({ artifactId }: { artifactId: string }) {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Submission failed");
+        if (res.status === 429)
+          throw new Error("Too many requests. Please slow down and try again.");
+        if (res.status >= 500)
+          throw new Error("Something went wrong submitting your feedback. Please try again.");
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error ?? "Submission failed.");
       }
 
       setSubmitted(true);

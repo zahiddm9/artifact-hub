@@ -82,8 +82,12 @@ export function PublishForm() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Upload failed");
+        if (res.status === 429)
+          throw new Error("Too many requests. Please wait a moment before publishing.");
+        if (res.status >= 500)
+          throw new Error("Upload failed. Please try again.");
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error ?? "Upload failed.");
       }
 
       const data = await res.json();
@@ -149,11 +153,8 @@ export function PublishForm() {
             <p className="text-sm text-amber-800">
               Your artifact was saved but the share link could not be created.
             </p>
-            <p className="text-xs font-mono text-muted-foreground break-all">
-              Artifact ID: {success.artifactId}
-            </p>
             <p className="text-xs text-muted-foreground">
-              Use the MCP <code>create_share_link</code> tool with this ID to generate an access link.
+              Contact an admin to generate an access link for this artifact.
             </p>
           </div>
         ) : (

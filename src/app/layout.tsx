@@ -21,9 +21,9 @@ export const metadata: Metadata = {
 
 const themeScript = `
 (function() {
-  var theme = localStorage.getItem('artifact-hub-theme') || 'theme-saas';
+  var theme = localStorage.getItem('artifact-hub-theme') || 'theme-premium';
   var valid = ['theme-saas','theme-creative','theme-docs','theme-premium'];
-  if (valid.indexOf(theme) === -1) theme = 'theme-saas';
+  if (valid.indexOf(theme) === -1) theme = 'theme-premium';
   document.documentElement.classList.add(theme);
 })();
 `;
@@ -36,7 +36,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased theme-premium`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
